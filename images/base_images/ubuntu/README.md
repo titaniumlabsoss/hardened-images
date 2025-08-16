@@ -3,12 +3,6 @@
     <img width="400px" height=auto src="https://raw.githubusercontent.com/titaniumlabsoss/hardened-images/refs/heads/main/assets/titanium-labs-logo.png" alt="Titanium Labs Logo" />
 </p>
 
-<p align="center">
-    <a href="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml"><img src="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml/badge.svg" /></a>
-    <a href="https://hub.docker.com/u/titaniumlabs"><img src="https://badgen.net/docker/pulls/titaniumlabs/ubuntu?icon=docker" /></a>
-    <a href="https://github.com/titaniumlabsoss/hardened-images/blob/main/LICENSE"><img src="https://badgen.net/badge/license/Apache-2.0/blue" /></a>
-</p>
-
 # Ubuntu Hardened Images
 
 Security-hardened Ubuntu container images implementing DISA STIG controls, CIS benchmarks, and enterprise security best practices.
