@@ -23,7 +23,7 @@ Traditional container images often prioritize convenience over security. Our har
 ## Security Features
 
 ### **Hardening Applied**
-- Minimal base images (Alpine/Debian minimal)
+- Minimal base images (Alpine/Ubuntu minimal)
 - Non-root user execution
 - Removed unnecessary packages and utilities
 - Security-focused file permissions
@@ -47,7 +47,7 @@ Traditional container images often prioritize convenience over security. Our har
 Our hardening methodology follows industry best practices:
 
 1. **Minimal Base Images**
-   - Start with Alpine Linux or Debian minimal
+   - Start with Alpine Linux or Ubuntu minimal
    - Remove package managers and shells when possible
    - Only install absolutely necessary dependencies
 
@@ -94,8 +94,8 @@ Our images are hardened against:
 
 Each image provides multiple variants:
 
-- `latest` - Latest stable hardened version on Debian minimal
-- `[version]` - Specific application version on Debian minimal (e.g., `postgres:16`)
+- `latest` - Latest stable hardened version on Ubuntu minimal
+- `[version]` - Specific application version on Ubuntu minimal (e.g., `postgres:16`)
 - `[version]-alpine` - Alpine-based minimal variant
 
 ## Contributing
