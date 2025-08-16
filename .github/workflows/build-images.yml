@@ -34,142 +34,273 @@ env:
   ORGANIZATION: titaniumlabs
 
 jobs:
-  discover-images:
-    name: Discover Images to Build
+  # discover-images:
+  #   name: Discover Images to Build
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     base-images: ${{ steps.discovery.outputs.base-images }}
+  #     app-images: ${{ steps.discovery.outputs.app-images }}
+  #     all-images: ${{ steps.discovery.outputs.all-images }}
+  #     has-images: ${{ steps.discovery.outputs.has-images }}
+  #     image-matrix: ${{ steps.discovery.outputs.image-matrix }}
+
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+
+  #     - name: Discover images
+  #       id: discovery
+  #       run: |
+  #         # Discover base images
+  #         BASE_IMAGES=()
+  #         while IFS= read -r -d '' dockerfile; do
+  #           image_dir=$(dirname "$dockerfile")
+  #           relative_path=$(realpath --relative-to="images" "$image_dir")
+
+  #           if [[ "$relative_path" =~ ^base_images/([^/]+)/([^/]+)$ ]]; then
+  #             os="${BASH_REMATCH[1]}"
+  #             version="${BASH_REMATCH[2]}"
+  #             tag="$ORGANIZATION/$os:$version"
+  #             BASE_IMAGES+=("$image_dir:$tag")
+  #           fi
+  #         done < <(find images/base_images -name "Dockerfile" -print0 2>/dev/null || true)
+
+  #         # Discover app images
+  #         APP_IMAGES=()
+  #         while IFS= read -r -d '' dockerfile; do
+  #           image_dir=$(dirname "$dockerfile")
+  #           relative_path=$(realpath --relative-to="images" "$image_dir")
+
+  #           if [[ "$relative_path" =~ ^base_images/ ]]; then
+  #             continue
+  #           fi
+
+  #           if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
+  #             app="${BASH_REMATCH[1]}"
+  #             version="${BASH_REMATCH[2]}"
+  #             os="${BASH_REMATCH[3]}"
+
+  #             if [[ "$os" == "alpine" ]]; then
+  #               tag="$ORGANIZATION/$app:$version-minimal"
+  #             else
+  #               tag="$ORGANIZATION/$app:$version"
+  #             fi
+
+  #             APP_IMAGES+=("$image_dir:$tag")
+  #           fi
+  #         done < <(find images -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
+
+  #         # Combine all images
+  #         ALL_IMAGES=("${BASE_IMAGES[@]}" "${APP_IMAGES[@]}")
+
+  #         # Apply filter if specified
+  #         if [[ -n "${{ github.event.inputs.filter }}" ]]; then
+  #           FILTERED_IMAGES=()
+  #           for image_spec in "${ALL_IMAGES[@]}"; do
+  #             if [[ "$image_spec" =~ "${{ github.event.inputs.filter }}" ]]; then
+  #               FILTERED_IMAGES+=("$image_spec")
+  #             fi
+  #           done
+  #           ALL_IMAGES=("${FILTERED_IMAGES[@]}")
+  #         fi
+
+  #         # Convert to JSON for GitHub Actions
+  #         BASE_IMAGES_JSON=$(if [ ${#BASE_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${BASE_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+  #         APP_IMAGES_JSON=$(if [ ${#APP_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${APP_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+  #         ALL_IMAGES_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+
+  #         # Create matrix for parallel builds
+  #         MATRIX_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R 'split(":") | {path: .[0], tag: (.[1:] | join(":")), name: (.[1:] | join(":") | gsub("[/:]"; "-")), image: .[1], version: .[2], is_minimal: (.[2] | contains("-minimal"))}' | jq -s -c .; fi)
+
+  #         echo "base-images=$BASE_IMAGES_JSON" >> $GITHUB_OUTPUT
+  #         echo "app-images=$APP_IMAGES_JSON" >> $GITHUB_OUTPUT
+  #         echo "all-images=$ALL_IMAGES_JSON" >> $GITHUB_OUTPUT
+  #         echo "has-images=$(if [ ${#ALL_IMAGES[@]} -gt 0 ]; then echo true; else echo false; fi)" >> $GITHUB_OUTPUT
+  #         echo "image-matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
+
+  #         echo "Discovered ${#ALL_IMAGES[@]} images to build"
+
+  # build-images:
+  #   name: Build - ${{ matrix.name }}
+  #   runs-on: ubuntu-latest
+  #   needs: discover-images
+  #   if: needs.discover-images.outputs.has-images == 'true'
+
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: ${{ fromJson(needs.discover-images.outputs.image-matrix) }}
+
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #     security-events: write
+  #     id-token: write
+  #     attestations: write
+
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+
+  #     - name: Log in to Docker Hub
+  #       if: github.event_name != 'pull_request' || github.event.inputs.push_images == 'true'
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: ${{ env.REGISTRY }}
+  #         username: ${{ secrets.REGISTRY_USERNAME }}
+  #         password: ${{ secrets.REGISTRY_TOKEN }}
+
+  #     - name: Extract metadata
+  #       id: meta
+  #       uses: docker/metadata-action@v5
+  #       with:
+  #         images: ${{ env.REGISTRY }}/${{ matrix.image }}
+  #         tags: |
+  #           type=raw,value=${{ matrix.version }}
+  #           type=raw,value=${{ matrix.version }}-{{date 'YYYYMMDD'}}
+  #           type=raw,value=latest,enable={{is_default_branch}}
+
+  #     - name: Build image
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: ${{ matrix.path }}
+  #         platforms: linux/amd64,linux/arm64
+  #         tags: ${{ steps.meta.outputs.tags }}
+  #         labels: ${{ steps.meta.outputs.labels }}
+  #         push: ${{ github.event_name != 'pull_request' || github.event.inputs.push_images == 'true' }}
+  #         cache-from: type=gha
+  #         cache-to: type=gha,mode=max
+  #         no-cache: ${{ github.event.inputs.rebuild == 'true' }}
+
+  discover-readme-files:
+    name: Discover README Files
     runs-on: ubuntu-latest
+#    needs: build-images
+    if: github.event_name != 'pull_request' || github.event.inputs.push_images == 'true'
     outputs:
-      base-images: ${{ steps.discovery.outputs.base-images }}
-      app-images: ${{ steps.discovery.outputs.app-images }}
-      all-images: ${{ steps.discovery.outputs.all-images }}
-      has-images: ${{ steps.discovery.outputs.has-images }}
-      image-matrix: ${{ steps.discovery.outputs.image-matrix }}
+      readme-matrix: ${{ steps.discovery.outputs.readme-matrix }}
+      has-readmes: ${{ steps.discovery.outputs.has-readmes }}
+      changed-readmes: ${{ steps.discovery.outputs.changed-readmes }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Discover images
+      - name: Discover README files
         id: discovery
         run: |
-          # Discover base images
-          BASE_IMAGES=()
-          while IFS= read -r -d '' dockerfile; do
-            image_dir=$(dirname "$dockerfile")
-            relative_path=$(realpath --relative-to="images" "$image_dir")
-
-            if [[ "$relative_path" =~ ^base_images/([^/]+)/([^/]+)$ ]]; then
-              os="${BASH_REMATCH[1]}"
-              version="${BASH_REMATCH[2]}"
-              tag="$ORGANIZATION/$os:$version"
-              BASE_IMAGES+=("$image_dir:$tag")
-            fi
-          done < <(find images/base_images -name "Dockerfile" -print0 2>/dev/null || true)
-
-          # Discover app images
-          APP_IMAGES=()
-          while IFS= read -r -d '' dockerfile; do
-            image_dir=$(dirname "$dockerfile")
-            relative_path=$(realpath --relative-to="images" "$image_dir")
-
-            if [[ "$relative_path" =~ ^base_images/ ]]; then
-              continue
-            fi
-
-            if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
-              app="${BASH_REMATCH[1]}"
-              version="${BASH_REMATCH[2]}"
-              os="${BASH_REMATCH[3]}"
-
-              if [[ "$os" == "alpine" ]]; then
-                tag="$ORGANIZATION/$app:$version-minimal"
-              else
-                tag="$ORGANIZATION/$app:$version"
-              fi
-
-              APP_IMAGES+=("$image_dir:$tag")
-            fi
-          done < <(find images -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
-
-          # Combine all images
-          ALL_IMAGES=("${BASE_IMAGES[@]}" "${APP_IMAGES[@]}")
-
-          # Apply filter if specified
-          if [[ -n "${{ github.event.inputs.filter }}" ]]; then
-            FILTERED_IMAGES=()
-            for image_spec in "${ALL_IMAGES[@]}"; do
-              if [[ "$image_spec" =~ "${{ github.event.inputs.filter }}" ]]; then
-                FILTERED_IMAGES+=("$image_spec")
-              fi
-            done
-            ALL_IMAGES=("${FILTERED_IMAGES[@]}")
+          # Get list of changed files if this is a push event
+          CHANGED_FILES=()
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Get changed files from the push
+            git fetch origin ${{ github.event.before }} --depth=50 2>/dev/null || git fetch --unshallow
+            mapfile -t CHANGED_FILES < <(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null || echo "")
+            echo "Changed files in this push:"
+            printf '%s\n' "${CHANGED_FILES[@]}"
           fi
 
-          # Convert to JSON for GitHub Actions
-          BASE_IMAGES_JSON=$(if [ ${#BASE_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${BASE_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
-          APP_IMAGES_JSON=$(if [ ${#APP_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${APP_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
-          ALL_IMAGES_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+          # Function to check if a file was changed
+          file_was_changed() {
+            local file="$1"
+            if [[ "${{ github.event_name }}" != "push" ]]; then
+              # For workflow_dispatch, process all README files
+              return 0
+            fi
 
-          # Create matrix for parallel builds
-          MATRIX_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R 'split(":") | {path: .[0], tag: (.[1:] | join(":")), name: (.[1:] | join(":") | gsub("[/:]"; "-")), image: .[1], version: .[2], is_minimal: (.[2] | contains("-minimal"))}' | jq -s -c .; fi)
+            for changed_file in "${CHANGED_FILES[@]}"; do
+              if [[ "$changed_file" == "$file" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
 
-          echo "base-images=$BASE_IMAGES_JSON" >> $GITHUB_OUTPUT
-          echo "app-images=$APP_IMAGES_JSON" >> $GITHUB_OUTPUT
-          echo "all-images=$ALL_IMAGES_JSON" >> $GITHUB_OUTPUT
-          echo "has-images=$(if [ ${#ALL_IMAGES[@]} -gt 0 ]; then echo true; else echo false; fi)" >> $GITHUB_OUTPUT
-          echo "image-matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
+          # Array to store README file mappings
+          README_FILES=()
+          CHANGED_READMES=()
 
-          echo "Discovered ${#ALL_IMAGES[@]} images to build"
+          # Find base image README files
+          find images/base_images -name "README.md" | while read -r readme_file; do
+            readme_dir=$(dirname "$readme_file")
+            relative_path=$(python3 -c "import os; print(os.path.relpath('$readme_dir', 'images'))")
 
-  build-images:
-    name: Build - ${{ matrix.name }}
+            if [[ "$relative_path" == base_images/* ]]; then
+              # Base image README (e.g., base_images/ubuntu/README.md)
+              os=$(echo "$relative_path" | sed 's|^base_images/||')
+              repository="$ORGANIZATION/$os"
+
+              echo "Found base image README: $readme_file -> $repository" >&2
+
+              # Only include if file was changed or this is workflow_dispatch
+              if file_was_changed "$readme_file"; then
+                echo "README file was changed: $readme_file" >&2
+                echo "$readme_file|$repository"
+              else
+                echo "README file unchanged, skipping: $readme_file" >&2
+              fi
+            fi
+          done > readme_mappings.txt
+
+          # Find app image README files
+          find images -name "README.md" -not -path "*/base_images/*" | while read -r readme_file; do
+            readme_dir=$(dirname "$readme_file")
+            relative_path=$(python3 -c "import os; print(os.path.relpath('$readme_dir', 'images'))")
+
+            # Extract app name from path (first directory component)
+            app=$(echo "$relative_path" | cut -d'/' -f1)
+            if [[ -n "$app" ]]; then
+              repository="$ORGANIZATION/$app"
+
+              echo "Found app image README: $readme_file -> $repository" >&2
+              
+              # Only include if file was changed or this is workflow_dispatch
+              if file_was_changed "$readme_file"; then
+                echo "README file was changed: $readme_file" >&2
+                echo "$readme_file|$repository"
+              else
+                echo "README file unchanged, skipping: $readme_file" >&2
+              fi
+            fi
+          done >> readme_mappings.txt
+
+          # Convert to JSON matrix
+          if [[ -s readme_mappings.txt ]]; then
+            MATRIX_JSON=$(cat readme_mappings.txt | jq -R 'split("|") | {readme_file: .[0], repository: .[1], name: (.[1] | gsub("[/:]"; "-"))}' | jq -s -c .)
+            echo "readme-matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
+            echo "has-readmes=true" >> $GITHUB_OUTPUT
+            echo "changed-readmes=true" >> $GITHUB_OUTPUT
+            echo "Found $(wc -l < readme_mappings.txt) changed README files to update"
+          else
+            echo "readme-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+            echo "has-readmes=false" >> $GITHUB_OUTPUT
+            echo "changed-readmes=false" >> $GITHUB_OUTPUT
+            echo "No changed README files found"
+          fi
+
+  update-dockerhub-readme:
+    name: Update README - ${{ matrix.name }}
     runs-on: ubuntu-latest
-    needs: discover-images
-    if: needs.discover-images.outputs.has-images == 'true'
+    needs: discover-readme-files
+    if: needs.discover-readme-files.outputs.changed-readmes == 'true'
 
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover-images.outputs.image-matrix) }}
+      matrix: ${{ fromJson(needs.discover-readme-files.outputs.readme-matrix) }}
 
     permissions:
       contents: read
-      packages: write
-      security-events: write
-      id-token: write
-      attestations: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request' || github.event.inputs.push_images == 'true'
-        uses: docker/login-action@v3
+      - name: Docker Hub Description
+        uses: peter-evans/dockerhub-description@v4
         with:
-          registry: ${{ env.REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ matrix.image }}
-          tags: |
-            type=raw,value=${{ matrix.version }}
-            type=raw,value=${{ matrix.version }}-{{date 'YYYYMMDD'}}
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build image
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.path }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          push: ${{ github.event_name != 'pull_request' || github.event.inputs.push_images == 'true' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          no-cache: ${{ github.event.inputs.rebuild == 'true' }}
+          repository: ${{ matrix.repository }}
+          readme-filepath: ${{ matrix.readme_file }}
+          enable-url-completion: true

@@ -13,55 +13,9 @@
 
 Security-hardened Ubuntu container images implementing DISA STIG controls, CIS benchmarks, and enterprise security best practices.
 
-## Image Metadata
-
-```yaml
-image_name: "ubuntu"
-docker_repo: "titaniumlabs"
-architectures: "amd64, arm64"
-description: "Ubuntu is a Debian-based Linux operating system that runs from the desktop to the cloud, to all your internet connected things. This hardened version implements DISA STIG controls, CIS benchmarks, and security best practices for a minimal attack surface and maximum security posture."
-
-# Security features across all Ubuntu versions
-security_features:
-  - "DISA STIG V-270724: Non-root user execution (UID 1001)"
-  - "Minimal package installation with only essential components"
-  - "Hardened kernel parameters and system configuration"
-  - "Disabled unnecessary services and network ports"
-  - "Enhanced file permissions and access controls"
-  - "FIPS-compliant cryptographic modules where applicable"
-  - "Comprehensive audit logging configuration"
-  - "Network security hardening and firewall rules"
-  - "Automated vulnerability scanning and patching"
-  - "Read-only filesystem where applicable"
-  - "Secure defaults for all system configurations"
-
-# Supported tags for all Ubuntu versions
-supported_tags:
-  - "24.04, latest - [Dockerfile](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/ubuntu/24.04/Dockerfile)"
-
-# All available variants across Ubuntu versions
-variants:
-  - tag: "latest"
-    description: "Points to the latest LTS version (24.04) - recommended for production use"
-  - tag: "24.04"
-    description: "Ubuntu 24.04 LTS (Noble Numbat) with full DISA STIG hardening"
-
-# Usage examples for different versions
-versions:
-  - tag: "24.04"
-    comment: "Latest LTS version (recommended)"
-
-# Build paths for different versions
-image_path: "base_images/ubuntu"
-```
-
 ## Available Versions
 
-### Ubuntu 24.04 LTS (Noble Numbat)
-- **Path**: `images/base_images/ubuntu/24.04/`
-- **Tags**: `24.04`, `latest`
-- **Status**: Current LTS (recommended)
-- **Support**: Until April 2029
+- [`24.04`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/ubuntu/24.04/Dockerfile)
 
 ## Quick Start
 
