@@ -1,0 +1,27 @@
+# Build artifacts
+build-logs/
+*.log
+
+# Docker build cache
+.docker/
+
+# Temporary files
+.tmp/
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Security scan results
+trivy-results/
+sbom-output/
+*.sarif
+*.cyclonedx.json
+*.spdx.json

@@ -12,14 +12,6 @@ Traditional container images often prioritize convenience over security. Our har
 - **Regular security updates** - Automated vulnerability scanning and patching
 - **Compliance ready** - Built with SOC2, HIPAA, and enterprise standards in mind
 
-## Available Images
-
-| Image | Description | Pulls |
-|-------|-------------|-------|
-| `Ubuntu` | Ubuntu 24.04 LTS hardened for enterprise compliance | ![Docker Pulls](https:img.shields.io/docker/pulls/titaniumlabs/ubuntu)
-
-*More images coming soon...*
-
 ## Security Features
 
 ### **Hardening Applied**
