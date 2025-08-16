@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(trivy image:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

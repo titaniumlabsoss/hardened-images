@@ -16,7 +16,7 @@ Traditional container images often prioritize convenience over security. Our har
 
 | Image | Description | Pulls |
 |-------|-------------|-------|
-| `N/A` | N/A | ![Docker Pulls](https:img.shields.io/docker/pulls/titaniumlabsoss/IMAGE)
+| `Ubuntu` | Ubuntu 24.04 LTS hardened for enterprise compliance | ![Docker Pulls](https:img.shields.io/docker/pulls/titaniumlabs/ubuntu)
 
 *More images coming soon...*
 
@@ -86,9 +86,9 @@ Every image includes:
 
 Our images are hardened against:
 - [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
+- [DISA STIG](https://www.cyber.mil/stigs)
 - [NIST Container Security Guidelines](https://csrc.nist.gov/publications/detail/sp/800-190/final)
 - [OWASP Container Security](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
-- Industry-specific compliance (HIPAA, SOC2, PCI-DSS considerations)
 
 ## Image Variants
 
@@ -125,4 +125,3 @@ If you discover a security vulnerability **do not open a public issue**, instead
 ---
 
 **Titanium Labs** - Forging the future of cybersecurity through open-source innovation.
-
