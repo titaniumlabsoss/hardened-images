@@ -10,6 +10,7 @@ Security-hardened Ubuntu container images implementing DISA STIG controls, CIS b
 ## Available Versions
 
 - [`24.04`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/ubuntu/24.04/Dockerfile)
+- [`22.04`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/ubuntu/22.04/Dockerfile)
 
 ## Quick Start
 
@@ -19,8 +20,8 @@ docker pull titaniumlabs/ubuntu:latest
 docker run --rm -it titaniumlabs/ubuntu:latest
 
 # Use specific LTS version
-docker pull titaniumlabs/ubuntu:24.04
-docker run --rm -it titaniumlabs/ubuntu:24.04
+docker pull titaniumlabs/ubuntu:22.04
+docker run --rm -it titaniumlabs/ubuntu:22.04
 
 # Use as base image
 FROM titaniumlabs/ubuntu:24.04
@@ -79,6 +80,25 @@ All Ubuntu hardened images meet:
 - **NIST 800-53**: National Institute of Standards cybersecurity framework
 - **NIST 800-190**: Container security guidelines
 - **FIPS 140-2**: Federal cryptographic standards
+
+### STIG Controls Implemented
+
+### Category I (High Severity)
+- V-238196: Operating system version compliance
+- V-238362: Ctrl-Alt-Delete key sequence disabled
+- V-238366: Non-privileged user execution
+- V-238330-338: Password policy enforcement
+- V-238290-327: Network security controls
+
+### Category II (Medium Severity)
+- V-238200-227: System configuration hardening
+- V-238252-286: Audit logging implementation
+- V-238350-361: Cryptographic controls
+- V-238380-399: File permission security
+
+### Category III (Low Severity)
+- V-238400-425: System cleanup and optimization
+- Additional hardening beyond STIG requirements
 
 ## Building Locally
 

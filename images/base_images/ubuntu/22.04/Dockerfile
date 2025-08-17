@@ -1,7 +1,7 @@
-# Ubuntu 24.04 LTS Hardened Image
-# Based on DISA STIG essential controls
+# Ubuntu 22.04 LTS STIG Hardened Image
+# Based on DISA STIG V2R2 controls for Ubuntu 22.04 LTS
 
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -26,7 +26,7 @@ RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /tmp/scripts
 
-# Switch to non-root user for runtime security (STIG V-270724)
+# Switch to non-root user for runtime security (STIG V-238366)
 USER 1001:1001
 WORKDIR /home/appuser
 

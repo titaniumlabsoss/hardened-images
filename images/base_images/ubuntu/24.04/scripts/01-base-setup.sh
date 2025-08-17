@@ -55,4 +55,7 @@ echo "UTC" > /etc/timezone
 # STIG V-270716: Set default umask
 echo "UMASK 077" >> /etc/login.defs
 
+# Create non-root user
+useradd -r -u 1001 -g root -s /bin/bash -m appuser
+
 echo "=== Base Setup Complete ==="

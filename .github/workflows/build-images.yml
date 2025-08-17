@@ -254,7 +254,7 @@ jobs:
               repository="$ORGANIZATION/$app"
 
               echo "Found app image README: $readme_file -> $repository" >&2
-              
+  
               # Only include if file was changed or this is workflow_dispatch
               if file_was_changed "$readme_file"; then
                 echo "README file was changed: $readme_file" >&2
