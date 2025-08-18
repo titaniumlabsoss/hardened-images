@@ -35,7 +35,7 @@ Provide a descriptive title and in the description of the report include the fol
 * Description of the effects of the vulnerability on our hardened images and the related container runtime configurations, so that the maintainers can reproduce it.
 * How the vulnerability affects image usage and an estimation of the attack surface, if there is one.
 * List other projects, base images, or dependencies that were used in conjunction with our images to produce the vulnerability.
-* Affected image tags and versions (e.g., `titaniumlabs/ubuntu:24.04`, `titaniumlabs/ubuntu:latest`).
+* Affected image tags and versions (e.g., `titaniumlabs/rockylinux:10.0`, `titaniumlabs/rockylinux:latest`).
 * Container runtime environment details (Docker version, Kubernetes version, etc.).
 
 ## When to report a vulnerability

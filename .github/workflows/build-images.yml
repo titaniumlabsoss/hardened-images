@@ -227,7 +227,7 @@ jobs:
             relative_path=$(python3 -c "import os; print(os.path.relpath('$readme_dir', 'images'))")
 
             if [[ "$relative_path" == base_images/* ]]; then
-              # Base image README (e.g., base_images/ubuntu/README.md)
+              # Base image README (e.g., base_images/rockylinux/README.md)
               os=$(echo "$relative_path" | sed 's|^base_images/||')
               repository="$ORGANIZATION/$os"
 

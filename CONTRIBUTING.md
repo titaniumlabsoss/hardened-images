@@ -89,7 +89,7 @@ images/
 #### Security Requirements (MANDATORY)
 
 - **Non-root execution**: All processes must run as unprivileged user
-- **Minimal base**: Use Alpine and/or Ubuntu minimal
+- **Minimal base**: Use Alpine and/or Rocky Linux minimal
 - **No package managers**: Remove apk, apt, yum after package installation
 - **Read-only filesystem**: Where application supports it
 - **Security scanning**: Must pass Trivy scan with no HIGH/CRITICAL CVEs

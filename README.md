@@ -7,7 +7,7 @@
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/stars/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/forks/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml"><img src="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml/badge.svg" /></a>
-    <a href="https://hub.docker.com/u/titaniumlabs"><img src="https://badgen.net/docker/pulls/titaniumlabs/ubuntu?icon=docker" /></a>
+    <a href="https://hub.docker.com/u/titaniumlabs"><img src="https://badgen.net/docker/pulls/titaniumlabs/rockylinux?icon=docker" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/blob/main/LICENSE"><img src="https://badgen.net/badge/license/Apache-2.0/blue" /></a>
 </p>
 
@@ -29,7 +29,7 @@ Traditional container images often prioritize convenience over security. Our har
 
 ### **Hardening Applied**
 
-- Minimal hardened base images (Alpine and Ubuntu)
+- Minimal hardened base images (Alpine and Rocky Linux)
 - Non-root user execution
 - Removed unnecessary packages and utilities
 - Security-focused file permissions
@@ -56,7 +56,7 @@ Our hardening methodology follows industry best practices:
 
 1. **Minimal Base Images**
 
-   - Start with Alpine Linux or Ubuntu
+   - Start with Alpine Linux or Rocky Linux
    - Remove package managers and shells when possible
    - Only install absolutely necessary dependencies
 

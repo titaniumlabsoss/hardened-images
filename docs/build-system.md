@@ -44,16 +44,16 @@ The build system automatically discovers images by scanning the `images/` direct
 ```
 images/
 ├── base_images/           # Base operating system images
-│   ├── ubuntu/
+│   ├── rockylinux/
 │   │   └── 24.04/
-│   │       └── Dockerfile → titaniumlabs/ubuntu:24.04
+│   │       └── Dockerfile → titaniumlabs/rockylinux:24.04
 │   └── alpine/
 │       └── 3.19/
 │           └── Dockerfile → titaniumlabs/alpine:3.19
 │
 └── postgres/              # Application images
     └── 16/
-        ├── ubuntu/
+        ├── rockylinux/
         │   └── Dockerfile → titaniumlabs/postgres:16
         └── alpine/
             └── Dockerfile → titaniumlabs/postgres:16-minimal
@@ -63,8 +63,8 @@ images/
 
 | Image Type | Directory Pattern | Tag Format | Example |
 |------------|------------------|------------|---------|
-| Base Images | `base_images/OS/VERSION/` | `titaniumlabs/OS:VERSION` | `titaniumlabs/ubuntu:24.04` |
-| Ubuntu Apps | `APP/VERSION/ubuntu/` | `titaniumlabs/APP:VERSION` | `titaniumlabs/postgres:16` |
+| Base Images | `base_images/OS/VERSION/` | `titaniumlabs/OS:VERSION` | `titaniumlabs/rockylinux:24.04` |
+| Rocky Apps | `APP/VERSION/rockylinux/` | `titaniumlabs/APP:VERSION` | `titaniumlabs/postgres:16` |
 | Alpine Apps | `APP/VERSION/alpine/` | `titaniumlabs/APP:VERSION-minimal` | `titaniumlabs/postgres:16-minimal` |
 
 ## Local Build Script
@@ -146,10 +146,10 @@ The build system generates comprehensive logs and reports:
 
 ```
 build-logs/
-├── build-all-20250816-120000.log      # Main build log
-├── build-ubuntu-20250816-120000.log   # Individual image logs
-├── build-postgres-20250816-120000.log # Individual image logs
-└── build-report-20250816-120000.md    # Markdown report
+├── build-all-20250816-120000.log          # Main build log
+├── build-rockylinux-20250816-120000.log   # Individual image logs
+├── build-postgres-20250816-120000.log     # Individual image logs
+└── build-report-20250816-120000.md        # Markdown report
 ```
 
 ## Advanced Configuration
@@ -170,7 +170,7 @@ build-logs/
 # Build only specific patterns
 ./scripts/build-images.sh --filter "postgres|nginx"
 ./scripts/build-images.sh --filter "minimal"
-./scripts/build-images.sh --filter "ubuntu"
+./scripts/build-images.sh --filter "rockylinux"
 ```
 
 ## Troubleshooting

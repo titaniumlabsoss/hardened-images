@@ -63,9 +63,9 @@ OPTIONS:
 
 TAGGING STRATEGY:
     Base Images:    $ORGANIZATION/OS:VERSION
-                   (e.g., titaniumlabs/ubuntu:24.04)
+                   (e.g., titaniumlabs/rockylinux:24.04)
 
-    App Images:     $ORGANIZATION/APP:VERSION (Ubuntu-based)
+    App Images:     $ORGANIZATION/APP:VERSION (Rocky-based)
                    $ORGANIZATION/APP:VERSION-minimal (Alpine-based)
                    (e.g., titaniumlabs/postgres:16, titaniumlabs/postgres:16-minimal)
 
