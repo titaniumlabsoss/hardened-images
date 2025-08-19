@@ -256,33 +256,45 @@ chmod 644 /etc/security/pwquality.conf.d/stig-enhanced.conf
 # Size for minimal container image
 echo "=== Starting Size Reduction ==="
 
-# Remove ALL unnecessary packages
-dnf remove -y \
-    dnf \
-    dnf-plugins-core \
-    python3-dnf \
-    python3-rpm \
-    rpm-python3 \
-    python3-gpg \
-    python3-hawkey \
-    python3-libcomps \
-    python3-librepo \
-    python3 \
-    platform-python \
-    2>/dev/null || true
+# Clean package manager caches but keep the tools functional
+dnf clean all
+rm -rf /var/cache/dnf/*
+rm -rf /var/cache/yum/*
 
-# Remove MASSIVE space wasters
+# Remove documentation and locales to save space
 rm -rf /usr/share/man
 rm -rf /usr/share/doc
 rm -rf /usr/share/info
-rm -rf /usr/share/locale
-rm -rf /usr/share/i18n
-rm -rf /usr/share/zoneinfo
+rm -rf /usr/share/locale/*
 rm -rf /var/cache/man
-rm -rf /var/lib/dnf
-rm -rf /var/lib/rpm
-rm -rf /etc/dnf
-rm -rf /etc/yum*
+
+# Keep essential locales
+mkdir -p /usr/share/locale/en_US
+touch /usr/share/locale/en_US/.keep
+
+# SECURITY: Remove Python development tools but keep core runtime
+# Remove pip to prevent package installation attacks
+dnf remove -y python3-pip python3-setuptools python3-wheel 2>/dev/null || true
+rm -rf /usr/bin/pip* /usr/local/bin/pip* 2>/dev/null || true
+rm -rf /usr/lib/python*/site-packages/pip* 2>/dev/null || true
+rm -rf /usr/lib/python*/site-packages/setuptools* 2>/dev/null || true
+
+# Remove Python development packages but keep runtime
+dnf remove -y python3-devel python3-test python3-debug 2>/dev/null || true
+
+# Remove unnecessary Python modules that increase attack surface
+rm -rf /usr/lib*/python*/site-packages/test 2>/dev/null || true
+rm -rf /usr/lib*/python*/site-packages/tests 2>/dev/null || true
+rm -rf /usr/lib*/python*/test 2>/dev/null || true
+rm -rf /usr/lib*/python*/unittest 2>/dev/null || true
+rm -rf /usr/lib*/python*/ensurepip 2>/dev/null || true
+rm -rf /usr/lib*/python*/idlelib 2>/dev/null || true
+rm -rf /usr/lib*/python*/tkinter 2>/dev/null || true
+rm -rf /usr/lib*/python*/turtle* 2>/dev/null || true
+rm -rf /usr/lib*/python*/distutils 2>/dev/null || true
+
+# IMPORTANT: Keep Python core runtime for dnf/yum functionality
+# Do NOT remove /usr/lib*/python* or encodings module
 
 # Remove systemd (huge space saver)
 rm -rf /usr/lib/systemd
@@ -308,11 +320,9 @@ rm -rf /usr/share/mime
 rm -rf /usr/share/pixmaps
 rm -rf /usr/share/icons
 rm -rf /usr/share/themes
-rm -rf /usr/lib/python*
-rm -rf /usr/lib64/python*
 
-# Remove compiler and development tools
-rm -rf /usr/include
+# Remove compiler and development tools (but keep Python headers needed by system)
+rm -rf /usr/include/[!p]*  # Keep python headers
 rm -rf /usr/lib*/pkgconfig
 rm -rf /usr/share/pkgconfig
 

@@ -405,11 +405,11 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-  
+
             // Count artifacts
             let sbomCount = 0;
             let trivyCount = 0;
-  
+
             try {
               const dirs = fs.readdirSync('security-reports');
               sbomCount = dirs.filter(d => d.startsWith('sbom-')).length;
@@ -417,24 +417,24 @@ jobs:
             } catch (e) {
               console.log('Could not read security-reports directory');
             }
-  
+
             const comment = `## Build & Security Summary
-  
+
             ### Workflow completed successfully
-  
+
             | Check | Status | Details |
             |-------|--------|---------|
             | Dockerfile Linting | PASS | Hadolint best practices check |
             | Image Build | PASS | ${trivyCount} images built |
             | Vulnerability Scan | PASS | Trivy & Grype scanning completed |
             | SBOM Generation | PASS | ${sbomCount} SBOMs generated |
-  
-            ### Results Available
+
+            ### Results Available\
             - [GitHub Security Tab](https://github.com/${{ github.repository }}/security/code-scanning)
             - [Workflow Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-  
+
             Images will be automatically pushed to Docker Hub when this PR is merged to main.`;
-  
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

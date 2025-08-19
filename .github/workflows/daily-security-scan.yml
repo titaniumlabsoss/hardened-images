@@ -36,7 +36,7 @@ jobs:
           else
             # Discover all published images from dockerfiles
             IMAGES=()
-  
+
             # Find base images
             while IFS= read -r -d '' dockerfile; do
               image_dir=$(dirname "$dockerfile")
@@ -46,7 +46,7 @@ jobs:
                 os="${BASH_REMATCH[1]}"
                 version="${BASH_REMATCH[2]}"
                 tag="$ORGANIZATION/$os:$version"
-  
+
                 # Check if image exists on Docker Hub
                 if docker manifest inspect "$REGISTRY/$tag" > /dev/null 2>&1; then
                   IMAGES+=("$tag")
@@ -254,13 +254,13 @@ jobs:
                 CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' "$result_dir/trivy-results.json")
                 HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length' "$result_dir/trivy-results.json")
                 MEDIUM=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' "$result_dir/trivy-results.json")
-  
+
                 if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
                   STATUS="!! Action Required !!"
                 else
                   STATUS="Secure"
                 fi
-  
+
                 echo "| $image_name | $CRITICAL | $HIGH | $MEDIUM | $STATUS |" >> $GITHUB_STEP_SUMMARY
               fi
             fi
