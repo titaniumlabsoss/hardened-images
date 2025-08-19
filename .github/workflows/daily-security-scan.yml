@@ -1,0 +1,273 @@
+name: Daily Security Monitoring
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Specific image to scan (e.g., titaniumlabs/alpine:3.22.1)'
+        required: false
+        default: ''
+
+env:
+  REGISTRY: docker.io
+  ORGANIZATION: titaniumlabs
+
+jobs:
+  discover-published-images:
+    name: Discover Published Images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.discovery.outputs.images }}
+      matrix: ${{ steps.discovery.outputs.matrix }}
+      has-images: ${{ steps.discovery.outputs.has-images }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Discover images
+        id: discovery
+        run: |
+          # If specific image is provided via workflow_dispatch
+          if [[ -n "${{ github.event.inputs.image }}" ]]; then
+            IMAGES=("${{ github.event.inputs.image }}")
+          else
+            # Discover all published images from dockerfiles
+            IMAGES=()
+  
+            # Find base images
+            while IFS= read -r -d '' dockerfile; do
+              image_dir=$(dirname "$dockerfile")
+              relative_path=$(realpath --relative-to="images" "$image_dir")
+
+              if [[ "$relative_path" =~ ^base_images/([^/]+)/([^/]+)$ ]]; then
+                os="${BASH_REMATCH[1]}"
+                version="${BASH_REMATCH[2]}"
+                tag="$ORGANIZATION/$os:$version"
+  
+                # Check if image exists on Docker Hub
+                if docker manifest inspect "$REGISTRY/$tag" > /dev/null 2>&1; then
+                  IMAGES+=("$tag")
+                  echo "Found published image: $tag"
+                else
+                  echo "Image not found on registry: $tag"
+                fi
+              fi
+            done < <(find images/base_images -name "Dockerfile" -print0 2>/dev/null || true)
+
+            # Find app images
+            while IFS= read -r -d '' dockerfile; do
+              image_dir=$(dirname "$dockerfile")
+              relative_path=$(realpath --relative-to="images" "$image_dir")
+
+              if [[ "$relative_path" =~ ^base_images/ ]]; then
+                continue
+              fi
+
+              if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
+                app="${BASH_REMATCH[1]}"
+                version="${BASH_REMATCH[2]}"
+                os="${BASH_REMATCH[3]}"
+
+                if [[ "$os" == "alpine" ]]; then
+                  tag="$ORGANIZATION/$app:$version-minimal"
+                else
+                  tag="$ORGANIZATION/$app:$version"
+                fi
+
+                # Check if image exists on Docker Hub
+                if docker manifest inspect "$REGISTRY/$tag" > /dev/null 2>&1; then
+                  IMAGES+=("$tag")
+                  echo "Found published image: $tag"
+                else
+                  echo "Image not found on registry: $tag"
+                fi
+              fi
+            done < <(find images -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
+          fi
+
+          # Convert to JSON
+          IMAGES_JSON=$(if [ ${#IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+          MATRIX_JSON=$(if [ ${#IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${IMAGES[@]}" | jq -R '{image: ., name: (. | gsub("[/:]"; "-"))}' | jq -s -c .; fi)
+
+          echo "images=$IMAGES_JSON" >> $GITHUB_OUTPUT
+          echo "matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
+          echo "has-images=$(if [ ${#IMAGES[@]} -gt 0 ]; then echo true; else echo false; fi)" >> $GITHUB_OUTPUT
+
+          echo "Found ${#IMAGES[@]} published images to scan"
+
+  vulnerability-scan:
+    name: Scan - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: discover-published-images
+    if: needs.discover-published-images.outputs.has-images == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-published-images.outputs.matrix) }}
+
+    permissions:
+      contents: read
+      security-events: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        id: trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: 'json'
+          output: 'trivy-results.json'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Parse vulnerabilities
+        id: parse
+        run: |
+          CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-results.json)
+          HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length' trivy-results.json)
+          MEDIUM=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' trivy-results.json)
+
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+          echo "total=$((CRITICAL + HIGH + MEDIUM))" >> $GITHUB_OUTPUT
+
+          # Create issue if critical vulnerabilities found
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "has_issues=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_issues=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-scan-${{ matrix.name }}
+          path: trivy-results.json
+          retention-days: 7
+
+      - name: Create issue for vulnerabilities
+        if: steps.parse.outputs.has_issues == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const image = '${{ matrix.image }}';
+            const critical = ${{ steps.parse.outputs.critical }};
+            const high = ${{ steps.parse.outputs.high }};
+            const medium = ${{ steps.parse.outputs.medium }};
+
+            const title = `Security Alert: ${image} - ${critical} CRITICAL, ${high} HIGH vulnerabilities`;
+
+            const body = `## Vulnerability Report for ${image}
+
+            Daily security scan detected vulnerabilities in the published image.
+
+            ### Summary
+            - **CRITICAL**: ${critical}
+            - **HIGH**: ${high}
+            - **MEDIUM**: ${medium}
+
+            ### Action Required
+            1. Review the detailed report in the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            2. Update base images or dependencies
+            3. Rebuild and push updated image
+
+            ### Scan Date
+            ${new Date().toISOString()}
+
+            ---
+            *This issue was automatically created by the daily security monitoring workflow.*`;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,vulnerability',
+              per_page: 100
+            });
+
+            const existingIssue = issues.data.find(issue =>
+              issue.title.includes(image) && issue.title.includes('Security Alert')
+            );
+
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: body
+              });
+              console.log(`Updated existing issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['security', 'vulnerability', 'automated']
+              });
+              console.log('Created new security issue');
+            }
+
+  monitoring-summary:
+    name: Monitoring Summary
+    runs-on: ubuntu-latest
+    needs: vulnerability-scan
+    if: always()
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          path: scan-results
+          pattern: daily-scan-*
+
+      - name: Generate summary report
+        run: |
+          echo "# Daily Security Monitoring Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scanned Images" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | CRITICAL | HIGH | MEDIUM | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|----------|------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          for result_dir in scan-results/daily-scan-*; do
+            if [ -d "$result_dir" ]; then
+              image_name=$(basename "$result_dir" | sed 's/daily-scan-//' | sed 's/-/\//g' | sed 's/\//:/2')
+
+              if [ -f "$result_dir/trivy-results.json" ]; then
+                CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' "$result_dir/trivy-results.json")
+                HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length' "$result_dir/trivy-results.json")
+                MEDIUM=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' "$result_dir/trivy-results.json")
+  
+                if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+                  STATUS="!! Action Required !!"
+                else
+                  STATUS="Secure"
+                fi
+  
+                echo "| $image_name | $CRITICAL | $HIGH | $MEDIUM | $STATUS |" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any created security issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Update images with vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- Check detailed reports in workflow artifacts" >> $GITHUB_STEP_SUMMARY

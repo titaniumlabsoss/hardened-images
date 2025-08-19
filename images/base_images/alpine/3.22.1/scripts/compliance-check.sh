@@ -78,7 +78,7 @@ if [ -f /etc/sysctl.d/99-stig-network.conf ]; then
     else
         check_fail "IPv4 forwarding is not disabled"
     fi
-  
+
     if grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.d/99-stig-network.conf; then
         check_pass "IPv6 is disabled"
     else
@@ -95,7 +95,7 @@ if [ -f /etc/ssh/sshd_config ]; then
     else
         check_fail "SSH root login is not disabled"
     fi
-  
+
     if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
         check_pass "SSH password authentication is disabled"
     else
@@ -139,7 +139,7 @@ if [ -f /etc/modprobe.d/stig-blacklist.conf ]; then
     else
         check_fail "Unnecessary network protocols are not blacklisted"
     fi
-  
+
     if grep -q "install usb-storage /bin/true" /etc/modprobe.d/stig-blacklist.conf; then
         check_pass "USB storage is disabled"
     else

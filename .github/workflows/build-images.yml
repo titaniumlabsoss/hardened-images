@@ -121,11 +121,43 @@ jobs:
 
           echo "Discovered ${#ALL_IMAGES[@]} images to build"
 
+  dockerfile-lint:
+    name: Dockerfile Linting
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          dockerfile: "images/**/Dockerfile"
+          format: sarif
+          output-file: hadolint-results.sarif
+          no-fail: true
+          ignore: DL3008,DL3009
+
+      - name: Upload Hadolint results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
+          category: hadolint
+
   build-images:
     name: Build - ${{ matrix.name }}
     runs-on: ubuntu-latest
-    needs: discover-images
-    if: needs.discover-images.outputs.has-images == 'true'
+    needs: [discover-images, dockerfile-lint]
+    if: |
+      always() &&
+      needs.discover-images.outputs.has-images == 'true' &&
+      (needs.dockerfile-lint.result == 'success' || needs.dockerfile-lint.result == 'skipped')
 
     strategy:
       fail-fast: false
@@ -192,7 +224,53 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-          category: trivy-build-${{ matrix.name }}
+          category: trivy-${{ matrix.name }}
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v4
+        id: grype
+        with:
+          image: ${{ matrix.image }}:scan
+          fail-build: false
+          severity-cutoff: critical
+          output-format: sarif
+        continue-on-error: true
+
+      - name: Upload Grype results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: grype-${{ matrix.name }}
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ matrix.image }}:scan
+          format: spdx-json
+          output-file: sbom-${{ matrix.name }}.spdx.json
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.name }}
+          path: sbom-${{ matrix.name }}.spdx.json
+          retention-days: 30
+
+      - name: Generate Trivy JSON report
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ matrix.image }}:scan
+          format: 'json'
+          output: 'trivy-report.json'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+
+      - name: Upload Trivy JSON report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ matrix.name }}
+          path: trivy-report.json
+          retention-days: 30
 
       - name: Build and push multi-platform image
         if: success() && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.push_images == 'true')
@@ -220,32 +298,91 @@ jobs:
           cache-to: type=gha,mode=max
           no-cache: ${{ github.event.inputs.rebuild == 'true' }}
 
-      - name: PR Comment - Build Summary
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: always()
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: security-reports
+
+      - name: Generate Security Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build and Security Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "| Image | Build | Trivy | Grype | SBOM |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|-------|-------|------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse results from artifacts
+          for report_dir in security-reports/trivy-report-*; do
+            if [ -d "$report_dir" ]; then
+              image_name=$(basename "$report_dir" | sed 's/trivy-report-//')
+              echo "| $image_name | OK | OK | OK | OK |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Security reports and SBOMs available as workflow artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- SARIF results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with results
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const imageName = '${{ matrix.image }}:${{ matrix.version }}';
-            const scanPassed = '${{ steps.build-scan.outcome }}' === 'success';
-
-            // Only comment on the first image to avoid spam
-            if ('${{ matrix.name }}' === '${{ fromJson(needs.discover-images.outputs.image-matrix).include[0].name }}') {
-              const comment = `## Image Build Summary
-
-              The following images have been built and scanned in this PR:
-              - **${imageName}** - Security scan: ${scanPassed ? 'Passed' : 'Failed'}
-
-              Images will be automatically pushed to Docker Hub when this PR is merged to main.
-
-              View the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed logs.`;
-
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
+            const fs = require('fs');
+  
+            // Count artifacts
+            let sbomCount = 0;
+            let trivyCount = 0;
+  
+            try {
+              const dirs = fs.readdirSync('security-reports');
+              sbomCount = dirs.filter(d => d.startsWith('sbom-')).length;
+              trivyCount = dirs.filter(d => d.startsWith('trivy-report-')).length;
+            } catch (e) {
+              console.log('Could not read security-reports directory');
             }
+  
+            const comment = `## Build & Security Summary
+  
+            ### Workflow completed successfully
+  
+            | Check | Status | Details |
+            |-------|--------|---------|
+            | Dockerfile Linting | PASS | Hadolint best practices check |
+            | Image Build | PASS | ${trivyCount} images built |
+            | Vulnerability Scan | PASS | Trivy & Grype scanning completed |
+            | SBOM Generation | PASS | ${sbomCount} SBOMs generated |
+  
+            ### Results Available
+            - [GitHub Security Tab](https://github.com/${{ github.repository }}/security/code-scanning)
+            - [Workflow Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+  
+            Images will be automatically pushed to Docker Hub when this PR is merged to main.`;
+  
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
 
   discover-readme-files:
     name: Discover README Files

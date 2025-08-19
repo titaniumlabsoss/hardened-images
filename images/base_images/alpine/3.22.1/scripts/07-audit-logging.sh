@@ -162,7 +162,7 @@ EOF
 # Make the configuration immutable
 -e 2
 EOF
-  
+
     # Load audit rules
     augenrules --load 2>/dev/null || true
 fi

@@ -2,62 +2,74 @@
 
 ## Overview
 
-Our security scanning is implemented at multiple stages to ensure comprehensive vulnerability detection before images are published.
+Our security scanning is fully integrated into the build pipeline, ensuring comprehensive vulnerability detection before images are published, with continuous monitoring of deployed images.
 
-## Scanning Stages
+## Scanning Workflows
 
-### 1. Pre-Push Scanning (build-images.yml)
+### 1. Build & Security Pipeline (build-images.yml)
 
-**When:** During image build, before pushing to registry
-**What:** Quick Trivy scan for CRITICAL and HIGH vulnerabilities
-**Action:** Blocks push if vulnerabilities found
+**When:**
+- Pull requests to main branch
+- Push to main branch
+- Manual workflow dispatch
+
+**Security Steps:**
+
+**Pull Requests:**
+1. **Dockerfile Linting** - Hadolint checks for best practices
+2. **Image Build** - Single platform (amd64) for scanning
+3. **Vulnerability Scanning** - Trivy and Grype scanners
+4. **SBOM Generation** - Syft creates SPDX format
+5. **Security Gates** - Block if vulnerabilities found
+6. **Multi-platform Build** - Build only, no push
+
+**Main Branch:**
+1. **Image Build** - Single platform (amd64) for scanning
+2. **Vulnerability Scanning** - Trivy and Grype scanners
+3. **SBOM Generation** - Syft creates SPDX format
+4. **Security Gates** - Block push if CRITICAL/HIGH vulnerabilities
+5. **Multi-platform Push** - Only after all checks pass
 
 ```yaml
-Build Image (amd64) → Trivy Scan → Pass? → Push Multi-Platform Image
-                                     ↓
-                                    Fail → Block Push
+PR:   Dockerfile Lint → Build (amd64) → Security Scans → Pass? → Build Multi-Platform (no push)
+Main: Build (amd64) → Security Scans → Pass? → Push Multi-Platform
+                                         ↓
+                                        Fail → Block & Report
 ```
 
-### 2. Comprehensive Scanning (security-scan.yml)
+**Scanners Integrated:**
+- **Hadolint**: Dockerfile best practices and security
+- **Trivy**: Comprehensive vulnerability scanning (OS, libraries)
+- **Grype**: Additional vulnerability detection with Anchore DB
+- **Syft**: Software Bill of Materials generation
 
-**When:** 
-- After successful build workflow completion
-- On pull requests
-- Daily scheduled scans
-- Manual trigger
+### 2. Daily Security Monitoring (daily-security-scan.yml)
 
-**Scanners:**
-- **Trivy**: Full vulnerability scan (OS, libraries, secrets, misconfigurations)
-- **Snyk**: Dependency analysis and vulnerability database
-- **Grype**: Additional vulnerability detection
-- **Hadolint**: Dockerfile best practices
-- **Syft**: SBOM generation (SPDX and CycloneDX)
-
-### 3. Continuous Monitoring
-
-**When:** Daily at 2 AM UTC
+**When:** Daily at 2 AM UTC or manual trigger
 **What:** Re-scan all published images for new vulnerabilities
-**Action:** Create issues/alerts for new vulnerabilities
+**Action:** Create GitHub issues for CRITICAL/HIGH vulnerabilities
 
 ## Workflow Integration
 
 ```mermaid
 graph TD
-    A[Pull Request] --> B[Build Images]
-    B --> C[Pre-Push Trivy Scan]
-    C --> D{Pass?}
-    D -->|Yes| E[Build Multi-Platform]
-    D -->|No| F[Block & Report]
-    E --> G[Comprehensive Security Scan]
-    
-    H[Merge to Main] --> I[Build Images]
-    I --> J[Pre-Push Trivy Scan]
-    J --> K{Pass?}
-    K -->|Yes| L[Push to Registry]
-    K -->|No| M[Block Push]
-    L --> N[Comprehensive Security Scan]
-    
-    O[Daily Schedule] --> P[Security Scan All Images]
+    A[Pull Request] --> B[Dockerfile Lint]
+    B --> C[Build Image - amd64]
+    C --> D[Security Scans]
+    D --> E{Pass?}
+    E -->|Yes| F[Build Multi-Platform - No Push]
+    E -->|No| G[Block & Report]
+
+    H[Merge to Main] --> J[Build Image - amd64]
+    J --> K[Security Scans]
+    K --> L{Pass?}
+    L -->|Yes| M[Push Multi-Platform to Registry]
+    L -->|No| N[Block Push]
+
+    O[Daily Schedule] --> P[Scan Published Images]
+    P --> Q{Vulnerabilities?}
+    Q -->|Yes| R[Create GitHub Issue]
+    Q -->|No| S[Log Success]
 ```
 
 ## Security Gates

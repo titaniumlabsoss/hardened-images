@@ -45,11 +45,11 @@ PubkeyAcceptedKeyTypes rsa-sha2-256,rsa-sha2-512,ecdsa-sha2-nistp256,ecdsa-sha2-
 HostKeyAlgorithms rsa-sha2-256,rsa-sha2-512,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,ssh-ed25519
 EOF
     fi
-  
+
     # Skip generating SSH keys to save space - they will be generated if SSH is installed later
     # Remove weak host keys if they exist
     rm -f /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_dsa_key.pub 2>/dev/null || true
-  
+
     # Set proper permissions for SSH keys
     chmod 600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
     chmod 644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
@@ -107,7 +107,7 @@ cat > /etc/ssl/tls-settings.conf << 'EOF'
 # Minimum TLS version: 1.2
 # Strong cipher suites only
 # Perfect Forward Secrecy preferred
-# 
+#
 # Applications should reference these settings:
 MinProtocol = TLSv1.2
 CipherString = ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS:!RC4:!3DES:!DES:!EXPORT:!SSLv2:!SSLv3:!TLSv1:!TLSv1.1

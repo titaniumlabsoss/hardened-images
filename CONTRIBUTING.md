@@ -23,7 +23,7 @@ Thank you for your interest in contributing to Titanium Labs' Hardened Images pr
 ### Development Setup
 
 1. **Fork and clone the repository**
- 
+
 ```bash
 git clone git@github.com:titaniumlabsoss/hardened-images.git
 cd hardened-image

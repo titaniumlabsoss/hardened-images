@@ -45,7 +45,7 @@ EOF
 # Configure filesystem mount options notes (STIG V-257827)
 cat > /etc/fstab.container-notes << 'EOF'
 # STIG Filesystem Mount Security (Host Configuration Required):
-# 
+#
 # Example secure mount options for host system:
 # /boot                   ext4    defaults,nosuid,nodev,noexec        1 2
 # /tmp                    tmpfs   defaults,nosuid,nodev,noexec        0 0

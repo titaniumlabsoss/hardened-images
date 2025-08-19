@@ -182,7 +182,7 @@ EOF
     # Skip generating SSH keys to save space - they will be generated if SSH is installed later
     # Remove weak host keys if they exist
     rm -f /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_dsa_key.pub 2>/dev/null || true
-  
+
     # Set proper permissions only if files exist
     chmod 600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
     chmod 644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true

@@ -35,7 +35,7 @@ EOF
 # RHEL 9 STIG V-257827: Configure filesystem mount options (container context)
 cat > /etc/fstab.container-notes << 'EOF'
 # RHEL 9 STIG Filesystem Mount Security (Host Configuration Required):
-# 
+#
 # Example secure mount options for host system:
 # /boot                   ext4    defaults,nosuid,nodev,noexec        1 2
 # /tmp                    tmpfs   defaults,nosuid,nodev,noexec        0 0
