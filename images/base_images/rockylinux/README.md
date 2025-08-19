@@ -1,4 +1,3 @@
-<!-- markdownlint-disable MD041 -->
 <p align="center">
     <img width="400px" height=auto src="https://raw.githubusercontent.com/titaniumlabsoss/hardened-images/refs/heads/main/assets/titanium-labs-logo.png" alt="Titanium Labs Logo" />
 </p>

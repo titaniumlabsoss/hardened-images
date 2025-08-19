@@ -48,10 +48,48 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to detect changes
 
       - name: Discover images
         id: discovery
         run: |
+          # Get changed files for push/pull_request events
+          CHANGED_FILES=()
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # For push events, compare with previous commit
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only $(git rev-list --max-parents=0 HEAD) HEAD)
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # For PRs, get files changed in the PR
+            git fetch origin ${{ github.base_ref }}
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # For manual runs, build all images (unless filtered)
+            echo "Manual run - will build all images unless filtered"
+          fi
+
+          echo "Changed files detected:"
+          echo "$CHANGED_FILES"
+
+          # Function to check if an image directory has changes
+          has_changes() {
+            local image_dir="$1"
+
+            # For workflow_dispatch, always return true unless filtered
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              return 0
+            fi
+
+            # Check if any changed file is within this image directory
+            while IFS= read -r changed_file; do
+              if [[ "$changed_file" == "$image_dir"/* ]]; then
+                echo "Found change in $image_dir: $changed_file"
+                return 0
+              fi
+            done <<< "$CHANGED_FILES"
+            return 1
+          }
+
           # Discover base images
           BASE_IMAGES=()
           while IFS= read -r -d '' dockerfile; do
@@ -62,7 +100,14 @@ jobs:
               os="${BASH_REMATCH[1]}"
               version="${BASH_REMATCH[2]}"
               tag="$ORGANIZATION/$os:$version"
-              BASE_IMAGES+=("$image_dir:$tag")
+
+              # Only add if there are changes in this directory
+              if has_changes "$image_dir"; then
+                BASE_IMAGES+=("$image_dir:$tag")
+                echo "Will build changed image: $tag"
+              else
+                echo "Skipping unchanged image: $tag"
+              fi
             fi
           done < <(find images/base_images -name "Dockerfile" -print0 2>/dev/null || true)
 
@@ -87,7 +132,13 @@ jobs:
                 tag="$ORGANIZATION/$app:$version"
               fi
 
-              APP_IMAGES+=("$image_dir:$tag")
+              # Only add if there are changes in this directory
+              if has_changes "$image_dir"; then
+                APP_IMAGES+=("$image_dir:$tag")
+                echo "Will build changed image: $tag"
+              else
+                echo "Skipping unchanged image: $tag"
+              fi
             fi
           done < <(find images -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
 
@@ -119,7 +170,14 @@ jobs:
           echo "has-images=$(if [ ${#ALL_IMAGES[@]} -gt 0 ]; then echo true; else echo false; fi)" >> $GITHUB_OUTPUT
           echo "image-matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
 
-          echo "Discovered ${#ALL_IMAGES[@]} images to build"
+          if [ ${#ALL_IMAGES[@]} -eq 0 ]; then
+            echo "No image changes detected in this commit"
+          else
+            echo "Discovered ${#ALL_IMAGES[@]} changed images to build:"
+            for img in "${ALL_IMAGES[@]}"; do
+              echo "  - $(echo $img | cut -d: -f2-)"
+            done
+          fi
 
   dockerfile-lint:
     name: Dockerfile Linting
@@ -302,7 +360,7 @@ jobs:
     name: Security Summary
     runs-on: ubuntu-latest
     needs: build-images
-    if: always()
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.push_images == 'true'
 
     permissions:
       contents: read
@@ -387,11 +445,7 @@ jobs:
   discover-readme-files:
     name: Discover README Files
     runs-on: ubuntu-latest
-    needs: discover-images
-    if: |
-      always() &&
-      needs.discover-images.outputs.has-images == 'true' &&
-      (needs.dockerfile-lint.result == 'success' || needs.dockerfile-lint.result == 'skipped')
+    if: success() && (github.event_name == 'push' && github.ref == 'refs/heads/main')
     outputs:
       readme-matrix: ${{ steps.discovery.outputs.readme-matrix }}
       has-readmes: ${{ steps.discovery.outputs.has-readmes }}
