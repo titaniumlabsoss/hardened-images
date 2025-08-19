@@ -3,6 +3,14 @@
 
 FROM alpine:3.22.1
 
+LABEL org.opencontainers.image.base.name="docker.io/titaniumlabs/alpine:3.22.1" \
+      org.opencontainers.image.description="Application packaged by Titanium Labs" \
+      org.opencontainers.image.documentation="https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/alpine/README.md" \
+      org.opencontainers.image.source="https://github.com/titaniumlabsoss/hardened-images/tree/main/images/base_images/alpine" \
+      org.opencontainers.image.title="alpine" \
+      org.opencontainers.image.vendor="Titanium Labs" \
+      org.opencontainers.image.version="3.22.1"
+
 # Set environment variables
 ENV TZ=UTC \
     LANG=C \

@@ -3,6 +3,14 @@
 
 FROM rockylinux/rockylinux:10.0-ubi
 
+LABEL org.opencontainers.image.base.name="docker.io/titaniumlabs/rockylinux:10.0" \
+      org.opencontainers.image.description="Application packaged by Titanium Labs" \
+      org.opencontainers.image.documentation="https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/rockylinux/README.md" \
+      org.opencontainers.image.source="https://github.com/titaniumlabsoss/hardened-images/tree/main/images/base_images/rockylinux" \
+      org.opencontainers.image.title="rockylinux" \
+      org.opencontainers.image.vendor="Titanium Labs" \
+      org.opencontainers.image.version="10.0"
+
 # Set environment variables
 ENV TZ=UTC \
     LC_ALL=C.UTF-8 \
