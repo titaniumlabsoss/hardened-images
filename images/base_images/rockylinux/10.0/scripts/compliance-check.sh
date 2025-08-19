@@ -14,10 +14,10 @@ check_compliance() {
     local check_name="$1"
     local command="$2"
     local expected="$3"
-  
+
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
     echo -n "Checking $check_name... "
-  
+
     result=$(eval "$command" 2>/dev/null)
     if [[ "$result" == "$expected" ]]; then
         echo "PASS"
