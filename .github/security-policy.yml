@@ -1,0 +1,91 @@
+# Security Scanning Policy Configuration
+# This file defines the security policies for the hardened images
+
+scanning:
+  # Vulnerability severity thresholds
+  severity:
+    block_on: [CRITICAL, HIGH]   # Block builds with these severities
+    warn_on: [MEDIUM]            # Warn but don't block
+    ignore: [LOW, UNKNOWN]       # Informational only
+
+  # Scanners configuration
+  scanners:
+    trivy:
+      enabled: true
+      version: 0.28.0
+      scan_types:
+        - os         # OS package vulnerabilities
+        - library    # Application dependencies
+        - secret     # Secret detection
+        - config     # Misconfiguration detection
+      ignore_unfixed: false
+
+    snyk:
+      enabled: true
+      severity_threshold: low
+      monitor: true  # Send results to Snyk dashboard
+
+    grype:
+      enabled: true
+      severity_cutoff: critical
+      scope: all-layers  # Scan all image layers
+
+    hadolint:
+      enabled: true
+      trusted_registries:
+        - docker.io
+        - gcr.io
+        - ghcr.io
+      ignored_rules:
+        - DL3008  # Pin versions in apt-get (we handle updates differently)
+        - DL3009  # Delete apt-get lists (we need them for updates)
+
+# SBOM (Software Bill of Materials) configuration
+sbom:
+  formats:
+    - spdx-json      # SPDX format
+    - cyclonedx-json # CycloneDX format
+  sign: true         # Sign SBOMs with cosign
+  attestation: true  # Create in-toto attestations
+
+# Compliance standards
+compliance:
+  standards:
+    - cis-docker     # CIS Docker Benchmark
+    - nist-800-190   # NIST Container Security
+    - pci-dss        # PCI DSS requirements
+    - hipaa          # HIPAA compliance
+
+  checks:
+    no_root_user: true
+    no_sudo: true
+    readonly_rootfs: true
+    no_new_privileges: true
+    security_opt_enforced: true
+
+# Exception handling
+exceptions:
+  # CVEs that are accepted risks (with justification)
+  accepted_vulnerabilities:
+    # Example:
+    # - id: CVE-2023-12345
+    #   reason: "False positive, not applicable to our use case"
+    #   expires: 2024-12-31
+
+  # Packages that are allowed despite vulnerabilities
+  allowed_packages: []
+
+# Reporting configuration
+reporting:
+  github_security_tab: true  # Upload to GitHub Security tab
+  artifacts: true            # Save as workflow artifacts
+  pr_comments: true          # Comment on PRs with results
+  slack_notifications: false # Set to true and configure webhook
+  email_notifications: false # Set to true and configure SMTP
+
+# Automated remediation
+remediation:
+  auto_update_base_images: true
+  auto_update_packages: true
+  create_fix_prs: true
+  dependency_update_schedule: "weekly"

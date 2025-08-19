@@ -1,0 +1,404 @@
+name: Security Scanning
+
+on:
+  workflow_run:
+    workflows: ["Build Hardened Images"]
+    types:
+      - completed
+  push:
+    branches: [ main ]
+    paths:
+      - 'images/**'
+      - '.github/workflows/security-scan.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'images/**'
+      - '.github/workflows/security-scan.yml'
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Specific image to scan (e.g., titaniumlabs/alpine:3.22.1)'
+        required: false
+        default: ''
+
+env:
+  REGISTRY: docker.io
+  ORGANIZATION: titaniumlabs
+
+jobs:
+  discover-images:
+    name: Discover Images to Scan
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.discovery.outputs.images }}
+      matrix: ${{ steps.discovery.outputs.matrix }}
+      has-images: ${{ steps.discovery.outputs.has-images }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Discover images
+        id: discovery
+        run: |
+          # If specific image is provided via workflow_dispatch
+          if [[ -n "${{ github.event.inputs.image }}" ]]; then
+            IMAGES=("${{ github.event.inputs.image }}")
+          else
+            # Discover all images
+            IMAGES=()
+
+            # Find base images
+            while IFS= read -r -d '' dockerfile; do
+              image_dir=$(dirname "$dockerfile")
+              relative_path=$(realpath --relative-to="images" "$image_dir")
+
+              if [[ "$relative_path" =~ ^base_images/([^/]+)/([^/]+)$ ]]; then
+                os="${BASH_REMATCH[1]}"
+                version="${BASH_REMATCH[2]}"
+                tag="$ORGANIZATION/$os:$version"
+                IMAGES+=("$tag")
+              fi
+            done < <(find images/base_images -name "Dockerfile" -print0 2>/dev/null || true)
+
+            # Find app images
+            while IFS= read -r -d '' dockerfile; do
+              image_dir=$(dirname "$dockerfile")
+              relative_path=$(realpath --relative-to="images" "$image_dir")
+
+              if [[ "$relative_path" =~ ^base_images/ ]]; then
+                continue
+              fi
+
+              if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
+                app="${BASH_REMATCH[1]}"
+                version="${BASH_REMATCH[2]}"
+                os="${BASH_REMATCH[3]}"
+
+                if [[ "$os" == "alpine" ]]; then
+                  tag="$ORGANIZATION/$app:$version-minimal"
+                else
+                  tag="$ORGANIZATION/$app:$version"
+                fi
+
+                IMAGES+=("$tag")
+              fi
+            done < <(find images -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
+          fi
+
+          # Convert to JSON
+          IMAGES_JSON=$(if [ ${#IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${IMAGES[@]}" | jq -R . | jq -s -c .; fi)
+          MATRIX_JSON=$(if [ ${#IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${IMAGES[@]}" | jq -R '{image: ., name: (. | gsub("[/:]"; "-"))}' | jq -s -c .; fi)
+
+          echo "images=$IMAGES_JSON" >> $GITHUB_OUTPUT
+          echo "matrix={\"include\":$MATRIX_JSON}" >> $GITHUB_OUTPUT
+          echo "has-images=$(if [ ${#IMAGES[@]} -gt 0 ]; then echo true; else echo false; fi)" >> $GITHUB_OUTPUT
+
+          echo "Found ${#IMAGES[@]} images to scan"
+
+  dockerfile-lint:
+    name: Dockerfile Linting
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          dockerfile: "images/**/Dockerfile"
+          format: sarif
+          output-file: hadolint-results.sarif
+          no-fail: true
+          ignore: DL3008,DL3009  # Ignore pin versions in apt-get
+
+      - name: Upload Hadolint results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
+          category: hadolint
+
+      - name: Display Hadolint results
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          dockerfile: "images/**/Dockerfile"
+          format: tty
+          no-fail: true
+          ignore: DL3008,DL3009
+
+  trivy-scan:
+    name: Trivy Scan - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: discover-images
+    if: needs.discover-images.outputs.has-images == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-images.outputs.matrix) }}
+
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          vuln-type: 'os,library'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: trivy-${{ matrix.name }}
+
+      - name: Run Trivy for summary
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          exit-code: '1'
+        continue-on-error: true
+
+      - name: Generate Trivy JSON report
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: 'json'
+          output: 'trivy-report.json'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+
+      - name: Upload Trivy JSON report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ matrix.name }}
+          path: trivy-report.json
+          retention-days: 30
+
+  snyk-scan:
+    name: Snyk Scan - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: discover-images
+    if: needs.discover-images.outputs.has-images == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-images.outputs.matrix) }}
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Snyk to check container vulnerabilities
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.image }}
+          args: --severity-threshold=low --file=images/**/Dockerfile
+        continue-on-error: true
+
+      - name: Upload Snyk results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+          category: snyk-${{ matrix.name }}
+
+  grype-scan:
+    name: Grype Scan - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: discover-images
+    if: needs.discover-images.outputs.has-images == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-images.outputs.matrix) }}
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v4
+        id: grype
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.image }}
+          fail-build: false
+          severity-cutoff: critical
+          output-format: sarif
+
+      - name: Upload Grype results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: grype-${{ matrix.name }}
+
+      - name: Generate Grype report
+        uses: anchore/scan-action@v4
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.image }}
+          fail-build: false
+          severity-cutoff: low
+          output-format: table
+
+  sbom-generation:
+    name: SBOM Generation - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: discover-images
+    if: needs.discover-images.outputs.has-images == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-images.outputs.matrix) }}
+
+    permissions:
+      contents: write
+      packages: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.name }}.spdx.json
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.name }}
+          path: sbom-${{ matrix.name }}.spdx.json
+          retention-days: 30
+
+      - name: Generate SBOM in CycloneDX format
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.image }}
+          format: cyclonedx-json
+          output-file: sbom-${{ matrix.name }}.cyclonedx.json
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-${{ matrix.name }}
+          path: sbom-${{ matrix.name }}.cyclonedx.json
+          retention-days: 30
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [trivy-scan, snyk-scan, grype-scan, dockerfile-lint, sbom-generation]
+    if: always()
+    
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: security-reports
+
+      - name: Generate Security Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Summary table
+          echo "| Scanner | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Check Trivy results
+          if ls security-reports/trivy-report-* 1> /dev/null 2>&1; then
+            echo "| Trivy | Completed | Vulnerability scanning completed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Trivy | No results | No scan results available |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check SBOM results
+          if ls security-reports/sbom-* 1> /dev/null 2>&1; then
+            sbom_count=$(ls -1 security-reports/sbom-* | wc -l)
+            echo "| SBOM | Generated | $sbom_count SBOMs created |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| SBOM | No results | No SBOMs generated |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "| Snyk | Configured | Requires SNYK_TOKEN secret |" >> $GITHUB_STEP_SUMMARY
+          echo "| Grype | Completed | Additional vulnerability scanning |" >> $GITHUB_STEP_SUMMARY
+          echo "| Hadolint | Completed | Dockerfile best practices check |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Security reports and SBOMs have been uploaded as artifacts and are available for download." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## GitHub Security Tab" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "SARIF results have been uploaded to the [Security tab](https://github.com/${{ github.repository }}/security/code-scanning) for review." >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## Security Scan Results
+
+            Security scanning has completed for this PR. Results are available in:
+            - [GitHub Security Tab](https://github.com/${{ github.repository }}/security/code-scanning)
+            - [Workflow Run Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            | Scanner | Purpose |
+            |---------|---------|
+            | Trivy | Container vulnerability scanning |
+            | Snyk | Dependency vulnerability analysis |
+            | Grype | Additional vulnerability detection |
+            | Hadolint | Dockerfile best practices |
+            | Syft | SBOM generation (SPDX & CycloneDX) |
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

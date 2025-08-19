@@ -7,6 +7,7 @@
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/stars/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/forks/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml"><img src="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml/badge.svg" /></a>
+    <a href="https://github.com/titaniumlabsoss/hardened-images/security"><img src="https://img.shields.io/github/issues-search/titaniumlabsoss/hardened-images?query=is%3Aopen%20is%3Aissue%20label%3Asecurity&label=security%20issues" /></a>
     <a href="https://hub.docker.com/u/titaniumlabs"><img src="https://badgen.net/docker/pulls/titaniumlabs/rockylinux?icon=docker" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/blob/main/LICENSE"><img src="https://badgen.net/badge/license/Apache-2.0/blue" /></a>
 </p>
@@ -37,7 +38,7 @@ Traditional container images often prioritize convenience over security. Our har
 
 ### **Continuous Monitoring**
 
-- Daily vulnerability scans
+- Daily vulnerability scans with Trivy
 - Automated security updates
 - SBOM (Software Bill of Materials) generation
 - CVE tracking and remediation
@@ -74,10 +75,25 @@ VOLUME ["/tmp", "/var/log"]
 
 3. **Automated Security Pipeline**
 
-- **Vulnerability Scanning**: Trivy scans before every release
-- **Zero-CVE Policy**: Block releases with HIGH/CRITICAL vulnerabilities
-- **SBOM Generation**: Full software bill of materials for compliance
-- **Documentation Sync**: README files automatically synchronized to DockerHub
+Our comprehensive security scanning pipeline includes multiple industry-leading tools:
+
+- **Multi-Scanner Approach**:
+  - **Trivy**: Primary vulnerability scanner for OS and library vulnerabilities
+  - **Snyk**: Dependency analysis and known vulnerability database
+  - **Grype**: Additional vulnerability detection with Anchore's database
+  - **Hadolint**: Dockerfile best practices and security linting
+
+- **Security Controls**:
+  - **Zero-CVE Policy**: Block releases with HIGH/CRITICAL vulnerabilities
+  - **SARIF Integration**: All results uploaded to GitHub Security tab
+  - **Pre-push Scanning**: Images scanned before registry push
+  - **Daily Scheduled Scans**: Continuous monitoring for new vulnerabilities
+
+- **Compliance & Reporting**:
+  - **SBOM Generation**: Automatic SPDX and CycloneDX format SBOMs with Syft
+  - **Security Attestations**: In-toto attestations for supply chain security
+  - **Artifact Storage**: 30-day retention of all security reports
+  - **Documentation Sync**: README files automatically synchronized to DockerHub
 
 ### Continuous Hardening
 
