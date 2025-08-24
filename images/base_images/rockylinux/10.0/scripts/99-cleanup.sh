@@ -272,7 +272,7 @@ rm -rf /var/cache/man
 mkdir -p /usr/share/locale/en_US
 touch /usr/share/locale/en_US/.keep
 
-# SECURITY: Remove Python development tools but keep core runtime
+# Remove Python development tools but keep core runtime
 # Remove pip to prevent package installation attacks
 dnf remove -y python3-pip python3-setuptools python3-wheel 2>/dev/null || true
 rm -rf /usr/bin/pip* /usr/local/bin/pip* 2>/dev/null || true
@@ -293,8 +293,59 @@ rm -rf /usr/lib*/python*/tkinter 2>/dev/null || true
 rm -rf /usr/lib*/python*/turtle* 2>/dev/null || true
 rm -rf /usr/lib*/python*/distutils 2>/dev/null || true
 
-# IMPORTANT: Keep Python core runtime for dnf/yum functionality
-# Do NOT remove /usr/lib*/python* or encodings module
+# Remove package managers after all installations complete
+# This prevents package installation attacks in the final container
+echo "=== Removing Package Managers for Security ==="
+
+# Remove dnf/yum binaries and related tools
+rm -f /usr/bin/dnf /usr/bin/yum /usr/bin/rpm /usr/bin/yum-config-manager
+rm -f /usr/bin/dnf-3 /usr/bin/yum-* /usr/bin/rpm*
+rm -rf /usr/lib/python*/site-packages/dnf*
+rm -rf /usr/lib/python*/site-packages/yum*
+rm -rf /usr/lib/python*/site-packages/rpm*
+rm -rf /var/lib/dnf
+rm -rf /var/lib/yum
+rm -rf /var/lib/rpm
+rm -rf /etc/dnf
+rm -rf /etc/yum.repos.d
+rm -rf /etc/yum
+
+# Remove package manager Python modules
+rm -rf /usr/lib*/python*/site-packages/hawkey*
+rm -rf /usr/lib*/python*/site-packages/libdnf*
+rm -rf /usr/lib*/python*/site-packages/librepo*
+rm -rf /usr/lib*/python*/site-packages/gpg*
+
+# Remove all text editors and file modification tools
+echo "=== Removing Text Editors and File Modification Tools ==="
+rm -f /usr/bin/vi /usr/bin/vim /usr/bin/nano /usr/bin/emacs /usr/bin/pico
+rm -f /usr/bin/ed /usr/bin/ex /usr/bin/sed /usr/bin/awk /usr/bin/gawk
+rm -f /bin/vi /bin/nano /bin/ed /bin/sed /bin/awk
+rm -rf /usr/share/vim* /usr/share/nano* /usr/share/emacs*
+rm -rf /etc/vimrc /etc/nanorc
+
+# Remove network communication tools
+echo "=== Removing Network Communication Tools ==="
+rm -f /usr/bin/wget /usr/bin/curl /usr/bin/lynx /usr/bin/links
+rm -f /usr/bin/ftp /usr/bin/sftp /usr/bin/scp /usr/bin/rsync
+rm -f /usr/bin/nc /usr/bin/netcat /usr/bin/nmap /usr/bin/telnet
+rm -f /usr/bin/ssh /usr/bin/ssh-keygen /usr/bin/ssh-copy-id
+rm -f /bin/wget /bin/curl /bin/nc /bin/netcat
+
+# Remove file manipulation utilitiesecho "=== Removing File Manipulation Utilities ==="
+rm -f /usr/bin/patch /usr/bin/diff /usr/bin/cmp
+rm -f /usr/bin/tar /usr/bin/gzip /usr/bin/gunzip /usr/bin/zip /usr/bin/unzip
+rm -f /usr/bin/bzip2 /usr/bin/bunzip2 /usr/bin/xz /usr/bin/unxz
+rm -f /bin/tar /bin/gzip /bin/gunzip
+
+# Remove process and system inspection tools
+echo "=== Removing System Inspection Tools ==="
+rm -f /usr/bin/ps /usr/bin/top /usr/bin/htop /usr/bin/lsof /usr/bin/netstat
+rm -f /usr/bin/ss /usr/bin/strace /usr/bin/ltrace /usr/bin/gdb
+rm -f /usr/bin/objdump /usr/bin/readelf /usr/bin/hexdump /usr/bin/strings
+rm -f /bin/ps /bin/netstat
+
+# IMPORTANT: Keep minimal Python core runtime for system functionality
 
 # Remove systemd (huge space saver)
 rm -rf /usr/lib/systemd

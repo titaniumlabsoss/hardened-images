@@ -33,9 +33,6 @@ apk del --purge openssh openssh-server audit logrotate sudo 2>/dev/null || true
 # Clean up package database
 rm -rf /var/cache/apk/*
 rm -rf /lib/apk/db/*
-# Recreate minimal APK database
-mkdir -p /lib/apk/db
-echo "1" > /lib/apk/db/installed
 
 # Remove setuid/setgid binaries that aren't needed
 find / -type f \( -perm -4000 -o -perm -2000 \) -exec ls -la {} \; 2>/dev/null | while read line; do
@@ -78,8 +75,46 @@ chmod 644 /etc/group 2>/dev/null || true
 echo "Alpine Linux hardened according to STIG standards" > /etc/hardened
 chmod 444 /etc/hardened
 
-# Final package database update
-apk update 2>/dev/null || true
+# Remove all text editors and file modification tools
+echo "=== Removing Text Editors and File Modification Tools ==="
+rm -f /usr/bin/vi /usr/bin/vim /usr/bin/nano /usr/bin/emacs /usr/bin/pico
+rm -f /usr/bin/ed /usr/bin/ex /usr/bin/sed /usr/bin/awk /usr/bin/gawk
+rm -f /bin/vi /bin/nano /bin/ed /bin/sed /bin/awk
+rm -rf /usr/share/vim* /usr/share/nano* /usr/share/emacs*
+rm -rf /etc/vimrc /etc/nanorc
+
+# Remove network communication tools
+echo "=== Removing Network Communication Tools ==="
+rm -f /usr/bin/wget /usr/bin/curl /usr/bin/lynx /usr/bin/links
+rm -f /usr/bin/ftp /usr/bin/sftp /usr/bin/scp /usr/bin/rsync
+rm -f /usr/bin/nc /usr/bin/netcat /usr/bin/nmap /usr/bin/telnet
+rm -f /usr/bin/ssh /usr/bin/ssh-keygen /usr/bin/ssh-copy-id
+rm -f /bin/wget /bin/curl /bin/nc /bin/netcat
+
+# Remove file manipulation utilities
+echo "=== Removing File Manipulation Utilities ==="
+rm -f /usr/bin/patch /usr/bin/diff /usr/bin/cmp
+rm -f /usr/bin/tar /usr/bin/gzip /usr/bin/gunzip /usr/bin/zip /usr/bin/unzip
+rm -f /usr/bin/bzip2 /usr/bin/bunzip2 /usr/bin/xz /usr/bin/unxz
+rm -f /bin/tar /bin/gzip /bin/gunzip
+
+# Remove process and system inspection tools
+echo "=== Removing System Inspection Tools ==="
+rm -f /usr/bin/ps /usr/bin/top /usr/bin/htop /usr/bin/lsof /usr/bin/netstat
+rm -f /usr/bin/ss /usr/bin/strace /usr/bin/ltrace /usr/bin/gdb
+rm -f /usr/bin/objdump /usr/bin/readelf /usr/bin/hexdump /usr/bin/strings
+rm -f /bin/ps /bin/netstat
+
+# Remove package manager after all installations complete
+# This prevents package installation attacks in the final container
+echo "=== Removing Package Manager for Security ==="
+
+# Remove apk binary and related tools
+rm -f /sbin/apk
+rm -rf /lib/apk
+rm -rf /var/cache/apk
+rm -rf /usr/share/apk
+rm -rf /etc/apk
 
 echo "=== Final Cleanup Complete ==="
 echo "=== Alpine Linux Hardening Complete ==="

@@ -36,7 +36,7 @@ scanning:
         - docker.io
         - gcr.io
         - ghcr.io
-      ignored_rules:
+      ignoreds:
         - DL3008  # Pin versions in apt-get (we handle updates differently)
         - DL3009  # Delete apt-get lists (we need them for updates)
 

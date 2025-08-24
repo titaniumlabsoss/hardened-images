@@ -17,7 +17,7 @@
 
 **Production-grade, security-hardened container images**. Designed with a *minimal attack surface*, automated remediation, and compliance at the core.
 
-Built for enterprises where trust, discipline, and resilience are non-negotiable.  
+Built for enterprises where trust, discipline, and resilience are non-negotiable.
 
 ## Why Hardened Images?
 
@@ -76,7 +76,6 @@ docker pull titaniumlabs/APP:[VERSION]
 
 Variants
 - latest — latest stable hardened build
-- latest-minimal — latest Alpine-based stable hardened build
 - [version] — specific release (e.g., 24.04)
 - [version]-minimal — Alpine-based
 - [version]-YYYYMMDD — date-stamped release
