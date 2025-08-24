@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -77,15 +78,43 @@ jobs:
           }
           EOF
 
-      - name: Commit badge updates
+      - name: Create and merge Pull Request
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
+          # Check if there are changes to commit
           if [[ -n $(git status -s .github/badges/) ]]; then
+            # Create a new branch
+            BRANCH_NAME="update-security-badges-$(date +%s)"
+            git checkout -b "$BRANCH_NAME"
+
+            # Configure git
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+
+            # Commit changes
             git add .github/badges/
             git commit -m "chore: update security badges [skip ci]"
-            git push
+
+            # Push branch
+            git push origin "$BRANCH_NAME"
+
+            # Create PR using GitHub CLI
+            PR_URL=$(gh pr create \
+              --title "Update Security Badges" \
+              --body "Automated update of security status badges.
+
+            - Security Status: ${{ steps.scan-status.outputs.badge_message }}
+            - Vulnerability Count: ${{ steps.scan-status.outputs.vuln_count }}
+            - Last Scan: ${{ steps.scan-status.outputs.scan_date }}" \
+              --head "$BRANCH_NAME" \
+              --base main)
+
+            # Auto-merge the PR
+            PR_NUMBER=$(echo "$PR_URL" | sed 's/.*\/pull\///')
+            gh pr merge "$PR_NUMBER" --auto --merge
+
+            echo "Created and auto-merged PR: $PR_URL"
           else
             echo "No changes to badges"
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
