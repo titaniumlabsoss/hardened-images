@@ -7,6 +7,7 @@
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/stars/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images"><img src="https://badgen.net/github/forks/titaniumlabsoss/hardened-images?icon=github" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml"><img src="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/build-images.yml/badge.svg" /></a>
+    <a href="https://github.com/titaniumlabsoss/hardened-images/actions/workflows/daily-security-scan.yml"><img src="https://img.shields.io/github/actions/workflow/status/titaniumlabsoss/hardened-images/daily-security-scan.yml?label=security%20scan&logo=security" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/security"><img src="https://img.shields.io/github/issues-search/titaniumlabsoss/hardened-images?query=is%3Aopen%20is%3Aissue%20label%3Asecurity&label=security%20issues" /></a>
     <a href="https://hub.docker.com/u/titaniumlabs"><img src="https://badgen.net/docker/pulls/titaniumlabs/rockylinux?icon=docker" /></a>
     <a href="https://github.com/titaniumlabsoss/hardened-images/blob/main/LICENSE"><img src="https://badgen.net/badge/license/Apache-2.0/blue" /></a>

@@ -1,4 +1,4 @@
-name: Daily Security Monitoring
+name: Daily Security Scan
 
 on:
   schedule:
