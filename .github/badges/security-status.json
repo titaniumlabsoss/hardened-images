@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "label": "Security Scan",
+  "message": "Unknown",
+  "color": "inactive",
+  "vulnerabilities": "N/A",
+  "lastScan": "2025-08-24"
+}
