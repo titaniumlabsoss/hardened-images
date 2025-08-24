@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -77,15 +78,29 @@ jobs:
           }
           EOF
 
-      - name: Commit badge updates
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+      - name: Create Pull Request
+        id: create-pull-request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore: update security badges [skip ci]"
+          title: "Update Security Badges"
+          body: |
+            Automated update of security status badges.
 
-          if [[ -n $(git status -s .github/badges/) ]]; then
-            git add .github/badges/
-            git commit -m "chore: update security badges [skip ci]"
-            git push
-          else
-            echo "No changes to badges"
-          fi
+            - Security Status: ${{ steps.scan-status.outputs.badge_message }}
+            - Vulnerability Count: ${{ steps.scan-status.outputs.vuln_count }}
+            - Last Scan: ${{ steps.scan-status.outputs.scan_date }}
+          branch: update-security-badges
+          delete-branch: true
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          add-paths: |
+            .github/badges/
+
+      - name: Auto-merge Pull Request
+        if: steps.create-pull-request.outputs.pull-request-number
+        run: |
+          gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
+        env:
+          GH_TOKEN: ${{ github.token }}
