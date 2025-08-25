@@ -55,15 +55,11 @@ Each image should follow this structure:
 images/
 ├── postgres/
 │   ├── 16/
-│   │   ├── alpine/
-│   │   │   ├── Dockerfile
-│   │   │   └── docker-entrypoint.sh
-│   │   └── ubuntu/
-│   │       ├── Dockerfile
-│   │       └── docker-entrypoint.sh
+│   │   ├── Dockerfile
+│   │   └── docker-entrypoint.sh
 │   ├── 15/
-│   │   ├── alpine/
-│   │   └── ubuntu/
+│   │   ├── Dockerfile
+│   │   └── docker-entrypoint.sh
 │   ├── README.md
 │   ├── docker-compose.example.yml
 │   ├── security/
@@ -74,8 +70,8 @@ images/
 │       └── functionality-test.sh
 ├── nginx/
 │   ├── 1.25/
-│   │   ├── alpine/
-│   │   └── ubuntu/
+│   │   ├── Dockerfile
+│   │   └── docker-entrypoint.sh
 │   ├── 1.24/
 │   └── README.md
 └── redis/
@@ -89,8 +85,8 @@ images/
 #### Security Requirements (MANDATORY)
 
 - **Non-root execution**: All processes must run as unprivileged user
-- **Minimal base**: Use Alpine and/or Rocky Linux minimal
-- **No package managers**: Remove apk, apt, yum after package installation
+- **Minimal base**: Use Rocky Linux UBI micro base
+- **No package managers**: Remove dnf, yum after package installation
 - **Read-only filesystem**: Where application supports it
 - **Security scanning**: Must pass Trivy scan with no HIGH/CRITICAL CVEs
 - **SBOM generation**: Include software bill of materials

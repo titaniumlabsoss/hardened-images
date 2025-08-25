@@ -34,7 +34,7 @@ Every Titanium Labs hardened image is crafted with:
 ## Security Architecture
 
 ### Hardening at the Core
-- Alpine & Rocky Linux hardened bases
+- Rocky Linux hardened bases
 - Reduced system utilities
 - Security-focused permissions
 - Non-root defaults
@@ -76,8 +76,7 @@ docker pull titaniumlabs/APP:[VERSION]
 
 Variants
 - latest — latest stable hardened build
-- [version] — specific release (e.g., 24.04)
-- [version]-minimal — Alpine-based
+- [version] — specific release (e.g., 10)
 - [version]-YYYYMMDD — date-stamped release
 
 ## Contributing

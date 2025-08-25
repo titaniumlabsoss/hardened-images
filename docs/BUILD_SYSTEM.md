@@ -44,28 +44,21 @@ The build system automatically discovers images by scanning the `images/` direct
 ```
 images/
 ├── base_images/           # Base operating system images
-│   ├── rockylinux/
-│   │   └── 24.04/
-│   │       └── Dockerfile → titaniumlabs/rockylinux:24.04
-│   └── alpine/
-│       └── 3.19/
-│           └── Dockerfile → titaniumlabs/alpine:3.19
+│   └── rockylinux/
+│       └── 10/
+│           └── Dockerfile → titaniumlabs/rockylinux:10
 │
 └── postgres/              # Application images
     └── 16/
-        ├── rockylinux/
-        │   └── Dockerfile → titaniumlabs/postgres:16
-        └── alpine/
-            └── Dockerfile → titaniumlabs/postgres:16-minimal
+        └── Dockerfile → titaniumlabs/postgres:16
 ```
 
 ### Tagging Convention
 
 | Image Type | Directory Pattern | Tag Format | Example |
 |------------|------------------|------------|---------|
-| Base Images | `base_images/OS/VERSION/` | `titaniumlabs/OS:VERSION` | `titaniumlabs/rockylinux:24.04` |
-| Rocky Apps | `APP/VERSION/rockylinux/` | `titaniumlabs/APP:VERSION` | `titaniumlabs/postgres:16` |
-| Alpine Apps | `APP/VERSION/alpine/` | `titaniumlabs/APP:VERSION-minimal` | `titaniumlabs/postgres:16-minimal` |
+| Base Images | `base_images/OS/VERSION/` | `titaniumlabs/OS:VERSION` | `titaniumlabs/rockylinux:10` |
+| App Images | `APP/VERSION/` | `titaniumlabs/APP:VERSION` | `titaniumlabs/postgres:16` |
 
 ## Local Build Script
 
@@ -169,7 +162,6 @@ build-logs/
 ```bash
 # Build only specific patterns
 ./scripts/build-images.sh --filter "postgres|nginx"
-./scripts/build-images.sh --filter "minimal"
 ./scripts/build-images.sh --filter "rockylinux"
 ```
 

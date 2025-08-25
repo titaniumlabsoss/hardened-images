@@ -63,11 +63,10 @@ OPTIONS:
 
 TAGGING STRATEGY:
     Base Images:    $ORGANIZATION/OS:VERSION
-                   (e.g., titaniumlabs/rockylinux:24.04)
+                   (e.g., titaniumlabs/rockylinux:10)
 
-    App Images:     $ORGANIZATION/APP:VERSION (Rocky-based)
-                   $ORGANIZATION/APP:VERSION-minimal (Alpine-based)
-                   (e.g., titaniumlabs/postgres:16, titaniumlabs/postgres:16-minimal)
+    App Images:     $ORGANIZATION/APP:VERSION
+                   (e.g., titaniumlabs/postgres:16)
 
 EXAMPLES:
     $0                                        # Build all images locally
@@ -209,21 +208,14 @@ discover_app_images() {
             continue
         fi
 
-        # Parse app image path: APP/VERSION/OS
-        if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
+        # Parse app image path: APP/VERSION
+        if [[ "$relative_path" =~ ^([^/]+)/([^/]+)$ ]]; then
             local app="${BASH_REMATCH[1]}"
             local version="${BASH_REMATCH[2]}"
-            local os="${BASH_REMATCH[3]}"
-
-            local tag
-            if [[ "$os" == "alpine" ]]; then
-                tag="$ORGANIZATION/$app:$version-minimal"
-            else
-                tag="$ORGANIZATION/$app:$version"
-            fi
+            local tag="$ORGANIZATION/$app:$version"
 
             app_images+=("$image_dir|$tag")
-            [[ "$DRY_RUN" != "true" ]] && log_info "Found app image: $app/$version/$os -> $tag" >&2
+            [[ "$DRY_RUN" != "true" ]] && log_info "Found app image: $app/$version -> $tag" >&2
         fi
     done < <(find "$IMAGES_DIR" -name "Dockerfile" -not -path "*/base_images/*" -print0 2>/dev/null || true)
 

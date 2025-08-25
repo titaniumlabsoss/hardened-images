@@ -121,16 +121,10 @@ jobs:
               continue
             fi
 
-            if [[ "$relative_path" =~ ^([^/]+)/([^/]+)/([^/]+)$ ]]; then
+            if [[ "$relative_path" =~ ^([^/]+)/([^/]+)$ ]]; then
               app="${BASH_REMATCH[1]}"
               version="${BASH_REMATCH[2]}"
-              os="${BASH_REMATCH[3]}"
-
-              if [[ "$os" == "alpine" ]]; then
-                tag="$ORGANIZATION/$app:$version-minimal"
-              else
-                tag="$ORGANIZATION/$app:$version"
-              fi
+              tag="$ORGANIZATION/$app:$version"
 
               # Only add if there are changes in this directory
               if has_changes "$image_dir"; then
@@ -162,7 +156,7 @@ jobs:
           ALL_IMAGES_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R . | jq -s -c .; fi)
 
           # Create matrix for parallel builds
-          MATRIX_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R 'split(":") | {path: .[0], tag: (.[1:] | join(":")), name: (.[1:] | join(":") | gsub("[/:]"; "-")), image: .[1], version: .[2], is_minimal: (.[2] | contains("-minimal"))}' | jq -s -c .; fi)
+          MATRIX_JSON=$(if [ ${#ALL_IMAGES[@]} -eq 0 ]; then echo '[]'; else printf '%s\n' "${ALL_IMAGES[@]}" | jq -R 'split(":") | {path: .[0], tag: (.[1:] | join(":")), name: (.[1:] | join(":") | gsub("[/:]"; "-")), image: (.[1:] | join(":") | split(":")[0]), version: (.[1:] | join(":") | split(":")[1])}' | jq -s -c .; fi)
 
           echo "base-images=$BASE_IMAGES_JSON" >> $GITHUB_OUTPUT
           echo "app-images=$APP_IMAGES_JSON" >> $GITHUB_OUTPUT

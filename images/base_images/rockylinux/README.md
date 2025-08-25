@@ -8,41 +8,22 @@ Security-hardened Rocky Linux container images implementing DISA STIG controls, 
 
 ## Available Versions
 
-- [`10.0`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/rocky/10.0/Dockerfile)
+- [`10`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/base_images/rockylinux/10/Dockerfile)
 
 ## Quick Start
 
 ```bash
 # Use latest version (10.0)
-docker pull titaniumlabs/rocky:latest
-docker run --rm -it titaniumlabs/rocky:latest
+docker pull titaniumlabs/rockylinux:latest
+docker run --rm -it titaniumlabs/rockylinux:latest
 
 # Use specific version
-docker pull titaniumlabs/rocky:10.0
-docker run --rm -it titaniumlabs/rocky:10.0
+docker pull titaniumlabs/rockylinux:10
+docker run --rm -it titaniumlabs/rockylinux:10
 
 # Use as base image
-FROM titaniumlabs/rocky:10.0
+FROM titaniumlabs/rockylinux:10
 # Your application here
-```
-
-## Security Validation
-
-All Rocky Linux variants include comprehensive security validation tools:
-
-```bash
-# Run STIG compliance validation
-docker run --rm titaniumlabs/rocky:latest /opt/stig-validation.sh
-
-# View security report
-docker run --rm titaniumlabs/rocky:latest cat /opt/security-report.json
-
-# Check hardening status
-docker run --rm titaniumlabs/rocky:latest id
-# Should show: uid=1001(appuser) gid=0(root)
-
-# Verify crypto policy
-docker run --rm titaniumlabs/rocky:latest update-crypto-policies --show
 ```
 
 ## What's Hardened
@@ -50,7 +31,7 @@ docker run --rm titaniumlabs/rocky:latest update-crypto-policies --show
 ### System Security
 
 - Non-root execution (UID/GID 1001)
-- Minimal package installation (UBI-based)
+- Minimal package installation (UBI micro-based)
 - Disabled unnecessary services
 - Secure file permissions (restrictive umask 077)
 - Hardened kernel parameters
@@ -156,7 +137,7 @@ cd hardened-images
 ./scripts/build-images.sh --filter rocky
 
 # Run security validation
-docker run --rm titaniumlabs/rocky:10.0 /opt/compliance-check.sh
+docker run --rm -u root titaniumlabs/rockylinux:10 /opt/compliance-check.sh
 ```
 
 ## Enterprise Integration
@@ -177,7 +158,7 @@ spec:
         runAsUser: 1001
       containers:
       - name: app
-        image: titaniumlabs/rocky:10.0
+        image: titaniumlabs/rockylinux:10
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -192,7 +173,7 @@ spec:
 version: '3.8'
 services:
   secure-service:
-    image: titaniumlabs/rocky:10.0
+    image: titaniumlabs/rockylinux:10
     security_opt:
       - no-new-privileges:true
     read_only: true

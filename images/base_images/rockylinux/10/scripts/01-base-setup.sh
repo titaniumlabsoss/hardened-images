@@ -23,6 +23,8 @@ set +e
 # - rsyslog: RHEL 9 STIG V-257790 (centralized logging)
 # - firewalld: RHEL 9 STIG V-257825 (host-based firewall)
 ESSENTIAL_PACKAGES=(
+    systemd
+    systemd-udev
     aide
     audit
     chrony

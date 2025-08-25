@@ -154,20 +154,20 @@ Each image build generates:
 
 ```bash
 # Trigger workflow manually
-gh workflow run security-scan.yml -f image=titaniumlabs/alpine:3.22.1
+gh workflow run security-scan.yml -f image=titaniumlabs/rockylinux:10
 ```
 
 ### Local Scanning
 
 ```bash
 # Using Trivy locally
-trivy image titaniumlabs/alpine:3.22.1
+trivy image titaniumlabs/rockylinux:10
 
 # Using Grype locally
-grype titaniumlabs/alpine:3.22.1
+grype titaniumlabs/rockylinux:10
 
 # Generate SBOM locally
-syft titaniumlabs/alpine:3.22.1 -o spdx-json
+syft titaniumlabs/rockylinux:10 -o spdx-json
 ```
 
 ## Security Exceptions
