@@ -8,7 +8,7 @@ Security-hardened BusyBox container images implementing DISA STIG controls, CIS 
 
 ## Available Versions
 
-- [`1.37.0`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/busybox/1.37.0/Dockerfile)
+- [`1`, `1.37`, `1.37.0`, `latest`](https://github.com/titaniumlabsoss/hardened-images/blob/main/images/busybox/1.37.0/Dockerfile)
 
 ## Quick Start
 

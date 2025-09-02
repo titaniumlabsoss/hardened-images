@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Version of the build system
+BUILD_SYSTEM_VERSION="1.1"
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -76,6 +79,143 @@ EXAMPLES:
     $0 --dry-run                              # Preview what would be built
 
 EOF
+}
+
+# Semantic version comparison
+version_compare() {
+    local ver1="$1"
+    local ver2="$2"
+
+    # Split versions into components
+    IFS='.' read -ra VER1 <<< "$ver1"
+    IFS='.' read -ra VER2 <<< "$ver2"
+
+    # Pad arrays to same length
+    while [[ ${#VER1[@]} -lt 3 ]]; do VER1+=("0"); done
+    while [[ ${#VER2[@]} -lt 3 ]]; do VER2+=("0"); done
+
+    # Compare each component
+    for i in {0..2}; do
+        if [[ ${VER1[i]} -lt ${VER2[i]} ]]; then
+            return 1  # ver1 < ver2
+        elif [[ ${VER1[i]} -gt ${VER2[i]} ]]; then
+            return 0  # ver1 > ver2
+        fi
+    done
+
+    return 2  # ver1 == ver2
+}
+
+# Parse semantic version
+parse_semver() {
+    local version="$1"
+
+    # Extract major.minor.patch
+    if [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+        echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]}"
+        return 0
+    # Extract major.minor (treat as major.minor.0)
+    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+        echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} 0"
+        return 0
+    # Extract major only (treat as major.0.0)  
+    elif [[ "$version" =~ ^([0-9]+)$ ]]; then
+        echo "${BASH_REMATCH[1]} 0 0"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Get all versions for an app to determine latest tags
+get_app_versions() {
+    local app="$1"
+    local versions=()
+
+    # Find all version directories for this app
+    if [[ -d "$IMAGES_DIR/$app" ]]; then
+        while IFS= read -r -d '' version_dir; do
+            local version_name
+            version_name=$(basename "$version_dir")
+            # Only include if it has a Dockerfile and is a valid semver
+            if [[ -f "$version_dir/Dockerfile" ]] && parse_semver "$version_name" >/dev/null 2>&1; then
+                versions+=("$version_name")
+            fi
+        done < <(find "$IMAGES_DIR/$app" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null || true)
+    fi
+
+    printf '%s\n' "${versions[@]}"
+}
+
+# Determine additional tags for semantic versioning
+get_additional_tags() {
+    local app="$1"
+    local current_version="$2"
+    local additional_tags=()
+
+    # Parse current version
+    local current_parsed
+    current_parsed=$(parse_semver "$current_version")
+    if [[ $? -ne 0 ]]; then
+        # Not a valid semver, no additional tags
+        return 0
+    fi
+
+    read -r current_major current_minor current_patch <<< "$current_parsed"
+
+    # Get all versions for this app
+    local all_versions=()
+    while IFS= read -r version; do
+        [[ -n "$version" ]] && all_versions+=("$version")
+    done < <(get_app_versions "$app")
+
+    # Determine if this is the latest patch in the minor series
+    local is_latest_patch=true
+    local is_latest_minor=true
+    local is_latest_major=true
+
+    for version in "${all_versions[@]}"; do
+        [[ "$version" == "$current_version" ]] && continue
+
+        local parsed
+        parsed=$(parse_semver "$version")
+        [[ $? -ne 0 ]] && continue
+
+        read -r major minor patch <<< "$parsed"
+
+        # Check if there's a newer patch in the same minor version
+        if [[ $major -eq $current_major && $minor -eq $current_minor && $patch -gt $current_patch ]]; then
+            is_latest_patch=false
+        fi
+
+        # Check if there's a newer minor in the same major version
+        if [[ $major -eq $current_major ]]; then
+            if [[ $minor -gt $current_minor ]] || [[ $minor -eq $current_minor && $patch -gt $current_patch ]]; then
+                is_latest_minor=false
+            fi
+        fi
+
+        # Check if there's a newer major version
+        if version_compare "$version" "$current_version"; then
+            is_latest_major=false
+        fi
+    done
+
+    # Add minor tag if this is the latest patch in the minor series
+    if [[ $is_latest_patch == true ]]; then
+        additional_tags+=("$current_major.$current_minor")
+    fi
+
+    # Add major tag if this is the latest version overall
+    if [[ $is_latest_major == true ]]; then
+        additional_tags+=("$current_major")
+        # Also add 'latest' tag
+        additional_tags+=("latest")
+    fi
+
+    if [[ ${#additional_tags[@]} -gt 0 ]]; then
+        printf '%s\n' "${additional_tags[@]}"
+    fi
 }
 
 # Parse command line arguments
@@ -233,14 +373,32 @@ build_image() {
     image_name=$(basename "$tag")
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "DRY RUN: Would build $tag from $image_dir"
+        # Extract app and version from tag for additional tags preview
+        if [[ "$tag" =~ ^[^/]+/([^:]+):(.+)$ ]]; then
+            local app="${BASH_REMATCH[1]}"
+            local version="${BASH_REMATCH[2]}"
+            local additional_tags=()
+            while IFS= read -r additional_tag; do
+                [[ -n "$additional_tag" ]] && additional_tags+=("$additional_tag")
+            done < <(get_additional_tags "$app" "$version")
+
+            log_info "DRY RUN: Would build $tag from $image_dir"
+            if [[ ${#additional_tags[@]} -gt 0 ]]; then
+                for additional_tag in "${additional_tags[@]}"; do
+                    log_info "DRY RUN: Would also tag as $ORGANIZATION/$app:$additional_tag"
+                done
+            fi
+        else
+            log_info "DRY RUN: Would build $tag from $image_dir"
+        fi
         return 0
     fi
 
     log_info "Building image: $tag"
 
     local build_log="$BUILD_LOGS_DIR/build-${image_name//\//-}-${TIMESTAMP}.log"
-    local build_cmd="docker build"
+    local platforms="linux/amd64,linux/arm64"
+    local build_cmd="docker buildx build --platform $platforms"
 
     # Add build arguments
     if [[ "$REBUILD" == "true" ]]; then
@@ -253,10 +411,47 @@ build_image() {
 
     build_cmd="$build_cmd -t $tag"
 
-    # Add registry tag if pushing
+    # Determine additional tags for semantic versioning
+    local additional_tags=()
+    local all_tags=("$tag")
+
+    # Extract app and version from tag
+    if [[ "$tag" =~ ^[^/]+/([^:]+):(.+)$ ]]; then
+        local app="${BASH_REMATCH[1]}"
+        local version="${BASH_REMATCH[2]}"
+
+        while IFS= read -r additional_tag; do
+            [[ -n "$additional_tag" ]] && additional_tags+=("$additional_tag")
+        done < <(get_additional_tags "$app" "$version")
+
+        # Add additional tags to build command
+        for additional_tag in "${additional_tags[@]}"; do
+            local full_additional_tag="$ORGANIZATION/$app:$additional_tag"
+            build_cmd="$build_cmd -t $full_additional_tag"
+            all_tags+=("$full_additional_tag")
+            log_info "Will also tag as: $full_additional_tag"
+        done
+    fi
+
+    # Add registry tags if pushing
+    local registry_tags=()
     if [[ "$PUSH" == "true" && "$REGISTRY" != "" ]]; then
-        local registry_tag="$REGISTRY/${tag#*/}"
-        build_cmd="$build_cmd -t $registry_tag"
+        for local_tag in "${all_tags[@]}"; do
+            local registry_tag="$REGISTRY/$local_tag"
+            build_cmd="$build_cmd -t $registry_tag"
+            registry_tags+=("$registry_tag")
+        done
+        # Add push flag for buildx multi-platform builds
+        build_cmd="$build_cmd --push"
+    else
+        # For local builds with multiple platforms, we can't use --load, so build only for current platform
+        if [[ "$platforms" == *","* ]]; then
+            # Multiple platforms - build for current platform only when not pushing
+            local current_platform="linux/amd64"  # Default to amd64 for local builds
+            build_cmd="docker buildx build --platform $current_platform --load"
+        else
+            build_cmd="$build_cmd --load"
+        fi
     fi
 
     build_cmd="$build_cmd $image_dir"
@@ -266,21 +461,17 @@ build_image() {
     # Execute build
     if eval "$build_cmd" 2>&1 | tee "$build_log"; then
         log_success "Built image: $tag"
+        if [[ ${#additional_tags[@]} -gt 0 ]]; then
+            for additional_tag in "${additional_tags[@]}"; do
+                log_success "Tagged as: $ORGANIZATION/$app:$additional_tag"
+            done
+        fi
 
-        # Push if requested
+        # Log push results if images were pushed
         if [[ "$PUSH" == "true" ]]; then
-            local push_tag="$tag"
-            if [[ "$REGISTRY" != "" ]]; then
-                push_tag="$REGISTRY/${tag#*/}"
-            fi
-
-            log_info "Pushing image: $push_tag"
-            if docker push "$push_tag" 2>&1 | tee -a "$build_log"; then
+            for push_tag in "${registry_tags[@]}"; do
                 log_success "Pushed image: $push_tag"
-            else
-                log_error "Failed to push image: $push_tag"
-                return 1
-            fi
+            done
         fi
 
         return 0
@@ -388,7 +579,7 @@ fi)
 
 ---
 
-**Titanium Labs Hardened Images** | Build System v1.0
+**Titanium Labs Hardened Images** | Build System v$BUILD_SYSTEM_VERSION
 EOF
     log_success "Build report generated: $report_file"
 }
