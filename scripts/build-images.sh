@@ -144,7 +144,9 @@ get_app_versions() {
         done < <(find "$IMAGES_DIR/$app" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null || true)
     fi
 
-    printf '%s\n' "${versions[@]}"
+    if [[ ${#versions[@]} -gt 0 ]]; then
+        printf '%s\n' "${versions[@]}"
+    fi
 }
 
 # Determine additional tags for semantic versioning
@@ -174,7 +176,8 @@ get_additional_tags() {
     local is_latest_minor=true
     local is_latest_major=true
 
-    for version in "${all_versions[@]}"; do
+    if [[ ${#all_versions[@]} -gt 0 ]]; then
+        for version in "${all_versions[@]}"; do
         [[ "$version" == "$current_version" ]] && continue
 
         local parsed
@@ -199,7 +202,8 @@ get_additional_tags() {
         if version_compare "$version" "$current_version"; then
             is_latest_major=false
         fi
-    done
+        done
+    fi
 
     # Add minor tag if this is the latest patch in the minor series
     if [[ $is_latest_patch == true ]]; then
