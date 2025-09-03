@@ -30,7 +30,7 @@ LABEL org.opencontainers.image.base.name="titaniumlabs/rockylinux:10" \
       org.opencontainers.image.description="kubectl packaged by Titanium Labs" \
       org.opencontainers.image.documentation="https://github.com/titaniumlabsoss/hardened-images/blob/main/images/kubectl/README.md" \
       org.opencontainers.image.source="https://github.com/titaniumlabsoss/hardened-images/tree/main/images/kubectl" \
-      org.opencontainers.image.title="builder" \
+      org.opencontainers.image.title="kubectl" \
       org.opencontainers.image.vendor="Titanium Labs" \
       org.opencontainers.image.version="$APP_VERSION"
 
