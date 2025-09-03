@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/build-images.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
