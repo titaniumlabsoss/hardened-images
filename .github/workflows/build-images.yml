@@ -24,6 +24,10 @@ on:
         description: 'Filter images to build (regex pattern)'
         required: false
         default: ''
+      version:
+        description: 'Filter images by version (e.g., 1.33.3, v1.34.0)'
+        required: false
+        default: ''
       rebuild:
         description: 'Force rebuild without cache'
         required: false
@@ -139,15 +143,38 @@ jobs:
           # Combine all images
           ALL_IMAGES=("${BASE_IMAGES[@]}" "${APP_IMAGES[@]}")
 
-          # Apply filter if specified
-          if [[ -n "${{ github.event.inputs.filter }}" ]]; then
+          # Apply filters if specified
+          if [[ -n "${{ github.event.inputs.filter }}" || -n "${{ github.event.inputs.version }}" ]]; then
             FILTERED_IMAGES=()
             for image_spec in "${ALL_IMAGES[@]}"; do
-              if [[ "$image_spec" =~ "${{ github.event.inputs.filter }}" ]]; then
+              local matches_filter=true
+              local matches_version=true
+
+              # Check name filter
+              if [[ -n "${{ github.event.inputs.filter }}" ]]; then
+                if [[ ! "$image_spec" =~ "${{ github.event.inputs.filter }}" ]]; then
+                  matches_filter=false
+                fi
+              fi
+
+              # Check version filter
+              if [[ -n "${{ github.event.inputs.version }}" ]]; then
+                tag_part="${image_spec#*:}"
+                if [[ ! "$tag_part" =~ ":.*${{ github.event.inputs.version }}" ]]; then
+                  matches_version=false
+                fi
+              fi
+
+              # Include only if both filters match
+              if [[ $matches_filter == true && $matches_version == true ]]; then
                 FILTERED_IMAGES+=("$image_spec")
               fi
             done
             ALL_IMAGES=("${FILTERED_IMAGES[@]}")
+
+            echo "Applied filters:"
+            [[ -n "${{ github.event.inputs.filter }}" ]] && echo "  Name filter: ${{ github.event.inputs.filter }}"
+            [[ -n "${{ github.event.inputs.version }}" ]] && echo "  Version filter: ${{ github.event.inputs.version }}"
           fi
 
           # Convert to JSON for GitHub Actions
@@ -238,8 +265,11 @@ jobs:
 
       - name: Build images using build script
         run: |
-          # Parse filter from discovery if no manual filter provided
+          # Parse filters from discovery or manual inputs
           FILTER_ARG=""
+          VERSION_ARG=""
+
+          # Handle manual filter input
           if [[ -n "${{ github.event.inputs.filter }}" ]]; then
             FILTER_ARG="--filter '${{ github.event.inputs.filter }}'"
           elif [[ -n "${{ needs.discover-images.outputs.all-images }}" ]]; then
@@ -249,9 +279,14 @@ jobs:
               FILTER_ARG="--filter '$IMAGES'"
             fi
           fi
+          
+          # Handle version filter input
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION_ARG="--version '${{ github.event.inputs.version }}'"
+          fi
 
           # Build images with appropriate flags
-          BUILD_CMD="./scripts/build-images.sh --rebuild"
+          BUILD_CMD="./scripts/build-images.sh"
           if [[ "${{ github.event.inputs.rebuild }}" == "true" ]]; then
             BUILD_CMD="$BUILD_CMD --rebuild"
           fi
@@ -260,6 +295,9 @@ jobs:
           fi
           if [[ -n "$FILTER_ARG" ]]; then
             BUILD_CMD="$BUILD_CMD $FILTER_ARG"
+          fi
+          if [[ -n "$VERSION_ARG" ]]; then
+            BUILD_CMD="$BUILD_CMD $VERSION_ARG"
           fi
 
           echo "Running: $BUILD_CMD"

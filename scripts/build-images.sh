@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Version of the build system
-BUILD_SYSTEM_VERSION="1.1"
+BUILD_SYSTEM_VERSION="1.2.1"
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -61,6 +61,7 @@ OPTIONS:
     --push                 Push images to registry after building
     --no-parallel          Build images sequentially instead of parallel
     --filter PATTERN       Only build images matching pattern
+    --version VERSION      Only build images matching specific version
     --dry-run              Show what would be built without executing
     --rebuild              Force rebuild without cache
     -v, --verbose          Enable verbose output
@@ -79,6 +80,8 @@ EXAMPLES:
     $0 --platform amd64                       # Build only for AMD64 platform
     $0 --platform arm64                       # Build only for ARM64 platform
     $0 --filter postgres                      # Only build postgres images
+    $0 --version 1.37.0                       # Only build version 1.37.0 images
+    $0 --filter kubectl --version v1.33.3     # Build kubectl version v1.33.3
     $0 --registry docker.io --push            # Push to Docker Hub
     $0 --dry-run                              # Preview what would be built
 
@@ -221,7 +224,7 @@ get_additional_tags() {
         additional_tags+=("latest")
     fi
 
-    if [[ ${#additional_tags[@]} -gt 0 ]]; then
+    if [[ ${#additional_tags[@]:-0} -gt 0 ]]; then
         printf '%s\n' "${additional_tags[@]}"
     fi
 }
@@ -229,6 +232,7 @@ get_additional_tags() {
 # Parse command line arguments
 parse_args() {
     FILTER=""
+    VERSION_FILTER=""
     DRY_RUN=false
     REBUILD=false
     VERBOSE=false
@@ -265,6 +269,10 @@ parse_args() {
                 ;;
             --filter)
                 FILTER="$2"
+                shift 2
+                ;;
+            --version)
+                VERSION_FILTER="$2"
                 shift 2
                 ;;
             --dry-run)
@@ -404,8 +412,8 @@ build_image() {
             done < <(get_additional_tags "$app" "$version")
 
             log_info "DRY RUN: Would build $tag from $image_dir"
-            if [[ ${#additional_tags[@]} -gt 0 ]]; then
-                for additional_tag in "${additional_tags[@]}"; do
+            if [[ ${#additional_tags[@]:-0} -gt 0 ]]; then
+                for additional_tag in "${additional_tags[@]:-}"; do
                     log_info "DRY RUN: Would also tag as $ORGANIZATION/$app:$additional_tag"
                 done
             fi
@@ -460,11 +468,13 @@ build_image() {
         done < <(get_additional_tags "$app" "$version")
 
         # Add additional tags to build command
-        for additional_tag in "${additional_tags[@]}"; do
-            local full_additional_tag="$ORGANIZATION/$app:$additional_tag"
-            build_cmd="$build_cmd -t $full_additional_tag"
-            all_tags+=("$full_additional_tag")
-            log_info "Will also tag as: $full_additional_tag"
+        for additional_tag in "${additional_tags[@]:-}"; do
+            if [[ -n "$additional_tag" ]]; then
+                local full_additional_tag="$ORGANIZATION/$app:$additional_tag"
+                build_cmd="$build_cmd -t $full_additional_tag"
+                all_tags+=("$full_additional_tag")
+                log_info "Will also tag as: $full_additional_tag"
+            fi
         done
     fi
 
@@ -496,7 +506,7 @@ build_image() {
     # Execute build
     if eval "$build_cmd" 2>&1 | tee "$build_log"; then
         log_success "Built image: $tag"
-        if [[ ${#additional_tags[@]} -gt 0 ]]; then
+        if [[ ${#additional_tags[@]:-0} -gt 0 ]]; then
             for additional_tag in "${additional_tags[@]}"; do
                 log_success "Tagged as: $ORGANIZATION/$app:$additional_tag"
             done
@@ -588,6 +598,7 @@ generate_build_report() {
 - **Push Images**: $PUSH
 - **Parallel Builds**: $PARALLEL
 - **Filter**: ${FILTER:-none}
+- **Version Filter**: ${VERSION_FILTER:-none}
 
 ## Build Results
 
@@ -649,12 +660,30 @@ main() {
         all_images+=("${app_images[@]}")
     fi
 
-    # Apply filter if specified
-    if [[ -n "$FILTER" ]]; then
+    # Apply filters if specified
+    if [[ -n "$FILTER" || -n "$VERSION_FILTER" ]]; then
         local filtered_images=()
         for image_spec in "${all_images[@]}"; do
             local tag="${image_spec#*|}"
-            if [[ "$tag" =~ $FILTER ]]; then
+            local matches_filter=true
+            local matches_version=true
+
+            # Check name filter
+            if [[ -n "$FILTER" ]]; then
+                if [[ ! "$tag" =~ $FILTER ]]; then
+                    matches_filter=false
+                fi
+            fi
+
+            # Check version filter
+            if [[ -n "$VERSION_FILTER" ]]; then
+                if [[ ! "$tag" =~ :.*$VERSION_FILTER ]]; then
+                    matches_version=false
+                fi
+            fi
+
+            # Include only if both filters match
+            if [[ $matches_filter == true && $matches_version == true ]]; then
                 filtered_images+=("$image_spec")
             fi
         done
@@ -663,7 +692,11 @@ main() {
         else
             all_images=()
         fi
-        log_info "Filtered to ${#all_images[@]} images matching: $FILTER"
+
+        local filter_msg=""
+        [[ -n "$FILTER" ]] && filter_msg="name: $FILTER"
+        [[ -n "$VERSION_FILTER" ]] && filter_msg="${filter_msg:+$filter_msg, }version: $VERSION_FILTER"
+        log_info "Filtered to ${#all_images[@]} images matching [$filter_msg]"
     fi
 
     if [[ ${#all_images[@]} -eq 0 ]]; then
