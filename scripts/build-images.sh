@@ -13,6 +13,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 IMAGES_DIR="$PROJECT_ROOT/images"
 REGISTRY="${REGISTRY:-docker.io}"
 ORGANIZATION="${ORGANIZATION:-titaniumlabs}"
+PLATFORM="${PLATFORM:-both}"
 PUSH="${PUSH:-false}"
 PARALLEL="${PARALLEL:-true}"
 BUILD_LOGS_DIR="${BUILD_LOGS_DIR:-$PROJECT_ROOT/build-logs}"
@@ -56,6 +57,7 @@ Build all hardened container images with automatic discovery and tagging
 OPTIONS:
     --registry REGISTRY    Container registry (default: $REGISTRY)
     --organization ORG     Organization name (default: $ORGANIZATION)
+    --platform PLATFORM    Target platform: amd64, arm64, or both (default: both)
     --push                 Push images to registry after building
     --no-parallel          Build images sequentially instead of parallel
     --filter PATTERN       Only build images matching pattern
@@ -74,6 +76,8 @@ TAGGING STRATEGY:
 EXAMPLES:
     $0                                        # Build all images locally
     $0 --push                                 # Build and push all images
+    $0 --platform amd64                       # Build only for AMD64 platform
+    $0 --platform arm64                       # Build only for ARM64 platform
     $0 --filter postgres                      # Only build postgres images
     $0 --registry docker.io --push            # Push to Docker Hub
     $0 --dry-run                              # Preview what would be built
@@ -239,6 +243,18 @@ parse_args() {
                 ORGANIZATION="$2"
                 shift 2
                 ;;
+            --platform)
+                case "$2" in
+                    amd64|arm64|both)
+                        PLATFORM="$2"
+                        ;;
+                    *)
+                        log_error "Invalid platform: $2. Must be 'amd64', 'arm64', or 'both'"
+                        exit 1
+                        ;;
+                esac
+                shift 2
+                ;;
             --push)
                 PUSH=true
                 shift
@@ -302,6 +318,7 @@ setup_build_environment() {
     log_success "Build environment ready"
     log_info "Registry: $REGISTRY"
     log_info "Organization: $ORGANIZATION"
+    log_info "Platform: $PLATFORM"
     log_info "Push images: $PUSH"
     log_info "Parallel builds: $PARALLEL"
     log_info "Build logs: $BUILD_LOGS_DIR"
@@ -401,7 +418,21 @@ build_image() {
     log_info "Building image: $tag"
 
     local build_log="$BUILD_LOGS_DIR/build-${image_name//\//-}-${TIMESTAMP}.log"
-    local platforms="linux/amd64,linux/arm64"
+    local platforms=""
+
+    # Set platforms based on user choice
+    case "$PLATFORM" in
+        amd64)
+            platforms="linux/amd64"
+            ;;
+        arm64)
+            platforms="linux/arm64"
+            ;;
+        both)
+            platforms="linux/amd64,linux/arm64"
+            ;;
+    esac
+
     local build_cmd="docker buildx build --platform $platforms"
 
     # Add build arguments
@@ -553,6 +584,7 @@ generate_build_report() {
 
 - **Registry**: $REGISTRY
 - **Organization**: $ORGANIZATION
+- **Platform**: $PLATFORM
 - **Push Images**: $PUSH
 - **Parallel Builds**: $PARALLEL
 - **Filter**: ${FILTER:-none}
